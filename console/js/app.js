@@ -6,6 +6,9 @@
 (function () {
   const { createApp, reactive, nextTick } = Vue;
 
+  // 全局 toast 兜底（mounted 时替换为带 UI 的实现）；避免依赖可选链语法
+  window.__cs = { toast: function () {} };
+
   /* ---------- Markdown 渲染 ---------- */
   function esc(s) { return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
   function inline(s) {
@@ -55,7 +58,7 @@
   window.consoleState = state;
 
   function hasBtn(key) {
-    return (state.user?.buttons || []).includes(key);
+    return ((state.user && state.user.buttons) || []).includes(key);
   }
 
   /* ---------- SSE / 聊天（M2-01） ---------- */
@@ -107,7 +110,7 @@
     kb.loading = true;
     try {
       kb.units = await Api.request("GET", "/admin/knowledge" + (kb.kw ? "?kw=" + encodeURIComponent(kb.kw) : ""));
-    } catch (e) { window.__cs?.toast(e.message); }
+    } catch (e) { window.__cs.toast(e.message); }
     kb.loading = false;
   }
   async function openPerm(unit) {
@@ -129,7 +132,7 @@
   async function savePerm() {
     const kb = state.kb;
     await Api.request("PUT", `/admin/knowledge/${kb.perm.id}/permissions`, kb.permForm);
-    window.__cs?.toast("权限已保存并即时生效");
+    window.__cs.toast("权限已保存并即时生效");
     kb.perm = null;
     await loadKnowledge();
   }
@@ -142,7 +145,7 @@
     const ok = ["pdf", "md", "doc", "docx", "txt"];
     for (const f of fileList) {
       const ext = (f.name.split(".").pop() || "").toLowerCase();
-      if (!ok.includes(ext)) { window.__cs?.toast(`不支持的格式：${f.name}`); continue; }
+      if (!ok.includes(ext)) { window.__cs.toast(`不支持的格式：${f.name}`); continue; }
       if (kb.importJobs.some(j => j.name === f.name && !j.done)) continue;
       kb.importJobs.push({ name: f.name, progress: 0, stage: "上传中…", done: false });
     }
@@ -171,7 +174,7 @@
           if (st.status === "failed") { job.stage = "失败"; throw new Error("导入失败"); }
           await new Promise(r => setTimeout(r, 2000));
         }
-        window.__cs?.toast(`《${job.name}》导入完成`);
+        window.__cs.toast(`《${job.name}》导入完成`);
       } catch (e) {
         job.stage = "失败：" + (e.message || e);
         job.done = true;
@@ -253,17 +256,17 @@
       },
       toggleEnabled(u) {
         Api.request("PUT", `/admin/knowledge/${u.id}`, { enabled: !u.enabled })
-          .then(() => { u.enabled = !u.enabled; window.__cs?.toast(u.enabled ? "已启用" : "已停用（检索不可命中）"); });
+          .then(() => { u.enabled = !u.enabled; window.__cs.toast(u.enabled ? "已启用" : "已停用（检索不可命中）"); });
       },
       saveEdit() {
         const e = state.kb.edit;
         Api.request("PUT", `/admin/knowledge/${e.id}`, { title: e.title, category: e.category })
-          .then(() => { state.kb.edit = null; window.__cs?.toast("已保存"); loadKnowledge(); });
+          .then(() => { state.kb.edit = null; window.__cs.toast("已保存"); loadKnowledge(); });
       },
       del(u) {
         if (!confirm(`确认删除《${u.title}》？将同步清理向量索引。`)) return;
         Api.request("DELETE", `/admin/knowledge/${u.id}`)
-          .then(() => { window.__cs?.toast("已删除"); loadKnowledge(); });
+          .then(() => { window.__cs.toast("已删除"); loadKnowledge(); });
       },
       openChunks(u) {
         Api.request("GET", `/admin/knowledge/${u.id}/chunks`)
@@ -281,7 +284,7 @@
       },
     },
     mounted() {
-      window.__cs = { toast: (t) => { state.toastText = t; setTimeout(() => { state.toastText = ""; }, 2600); } };
+      window.__cs.toast = (t) => { state.toastText = t; setTimeout(() => { state.toastText = ""; }, 2600); };
       if (Api.token()) {
         Api.me().then(u => { state.user = u; state.view = "console"; }).catch(() => Api.clearToken());
       }
@@ -311,17 +314,17 @@
           <div class="logo-sub">RAG 知识库管理平台</div>
           <nav>
             <a :class="{on: s.tab === 'chat'}" @click="go('chat')">AI 问答工作台</a>
-            <a v-if="(s.user.menus || []).includes('knowledge')" :class="{on: s.tab === 'knowledge'}" @click="go('knowledge')">知识维护与导入</a>
+            <a v-if="((s.user && s.user.menus) || []).includes('knowledge')" :class="{on: s.tab === 'knowledge'}" @click="go('knowledge')">知识维护与导入</a>
             <a class="disabled" title="M3">沉淀与运营</a>
             <a class="disabled" title="M3">运营看板</a>
             <a class="disabled" title="后续迭代">组织与系统配置</a>
           </nav>
           <div class="side-foot">
             <div class="me">
-              <div class="acc-avatar">{{ (s.user.display_name || '?')[0] }}</div>
+              <div class="acc-avatar">{{ ((s.user && s.user.display_name) || '?')[0] }}</div>
               <div class="me-info">
                 <div class="me-name">{{ s.user.display_name }}</div>
-                <div class="me-sub">{{ (s.user.roles || []).join(' / ') }}</div>
+                <div class="me-sub">{{ ((s.user && s.user.roles) || []).join(' / ') }}</div>
               </div>
             </div>
             <a class="link danger" @click="logout">退出登录</a>

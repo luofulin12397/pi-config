@@ -8,6 +8,21 @@
 </head>
 <body>
   <div id="app"></div>
+  <script>
+    // 白屏诊断：任何未捕获错误直接显示在页面顶部（正式环境可移除）
+    window.addEventListener('error', function (e) {
+      var el = document.createElement('pre');
+      el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#7f1d1d;color:#fff;padding:10px;font-size:12px;white-space:pre-wrap;';
+      el.textContent = '[JS 错误] ' + (e.message || '') + '\n' + (e.filename || '') + ':' + (e.lineno || '');
+      document.body.appendChild(el);
+    });
+    window.addEventListener('unhandledrejection', function (e) {
+      var el = document.createElement('pre');
+      el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#7f1d1d;color:#fff;padding:10px;font-size:12px;white-space:pre-wrap;';
+      el.textContent = '[未处理的 Promise 异常] ' + (e.reason && (e.reason.message || e.reason) || '');
+      document.body.appendChild(el);
+    });
+  </script>
   <script src="vendor/vue.global.prod.js"></script>
   <script src="js/api.js"></script>
   <script src="js/app.js"></script>
