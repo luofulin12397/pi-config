@@ -13,4 +13,4 @@
 ## Comments
 
 - 实施：perm_engine.py 纯函数无依赖（系统 Python 可直跑测试，无需 Mongo/uv 环境）；仓储为 expand 阶段，新方法按 knowledge_id 读写，旧方法保留
-- 交付 commit：后端仓库 2edad68；Mongo 集成验证（真实读写）留待服务联调（M1-05 前需起 Mongo）
+- 交付 commit：后端仓库 2edad68；Mongo 集成验证已通过（联调环境四维 upsert/回读/批量/旧格式兼容判定全过）

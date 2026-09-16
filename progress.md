@@ -79,3 +79,10 @@
 ### 会话 4 续：M1-02 代码交付（待集成验证）
 - knowledge_repository + 导入图登记 + 双检索停用过滤 + admin_routes（:55001 require_admin）；后端 commit 448d02c
 - 已验证：py_compile 9 文件、perm_engine 回归 17/17；接口集成验证需 Mongo+Milvus+LLM 环境（阻塞点：.env API key 失效需用户提供）
+
+### 会话 4 续：联调环境搭建 + M1-01/02 集成验收通过
+1. **环境**：安装 docker+compose；deploy/docker-compose.yml 起 mongo/etcd/minio/milvus（配 registry mirror）；.venv 装轻量依赖子集；.env 指向 DeepSeek（chat）+ 硅基流动（embedding/rerank API）
+2. **模型层 API 化**：embedding（dense API + 本地 sparse 哈希近似）、reranker（/rerank 适配器，形状兼容）——摆脱本地 torch/模型权重
+3. **联调发现并修复 3 个缺陷**（ISS-001/002/003）+ 2 项一致性/韧性改造（缓存失效、主体确认回退）
+4. **验收**：test_m1_ledger.py 9/9；票 01 Mongo 集成补验通过、票 02 → resolved（后端 commit 448d02c + 5b3bcdd）
+5. 遗留：三路检索全空时 rrf 抛 ValueError 返回 500（应优雅返回"未找到"）——记入 M1-05 重构范围；停用问答依赖过滤后三路空的表现需在 M1-05 一并优雅化

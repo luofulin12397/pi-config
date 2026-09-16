@@ -4,14 +4,17 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** claimed
+**Status:** resolved
 
-- [ ] 导入一篇文档完成后，台账列表出现该知识单元（代码完成，待集成验证）
-- [ ] 编辑标题/分类、启停即时生效；停用后检索不可命中（代码完成，待集成验证）
-- [ ] 删除后台账与向量库均不可再检索到（代码完成，待集成验证）
+- [x] 导入一篇文档完成后，台账列表出现该知识单元
+- [x] 编辑标题/分类、启停即时生效；停用后检索不可命中
+- [x] 删除后台账与向量库均不可再检索到
 
 ## Comments
 
 - 代码交付（后端仓库 448d02c）：knowledge_repository（file_title 派生 kid 幂等、编辑白名单、停用清单）+ 导入图登记 + 双检索服务停用过滤 + admin_routes（require_admin，删除同步清 Milvus）
 - 已验证：9 文件 py_compile、perm_engine 回归 17/17
 - 待验证：接口行为需 Mongo+Milvus+LLM 联调环境（.env 的 API key 指向原环境，需提供有效 key）；验证通过后再置 resolved
+
+- 集成验证：scripts/test_m1_ledger.py 9/9 通过（真实 Mongo+Milvus+DeepSeek+硅基流动全链路）
+- 联调顺带修复：ISS-001/002/003、语义缓存失效一致性、主体确认回退；后端 commit 5b3bcdd
