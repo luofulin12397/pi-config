@@ -1,0 +1,1205 @@
+<!-- 掌柜智库 - 智能问答 (Enterprise Dark Dashboard) -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>掌柜智库 - 智能问答</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0b1120;
+      --sidebar: #0d1424;
+      --card: #161b2a;
+      --card-hover: #1a2035;
+      --border: rgba(255,255,255,0.06);
+      --border-light: rgba(255,255,255,0.1);
+      --text: #f1f5f9;
+      --text-2: #9ca3af;
+      --text-3: #64748b;
+      --blue: #3b82f6;
+      --blue-dim: rgba(59,130,246,0.12);
+      --green: #10b981;
+      --amber: #f59e0b;
+      --purple: #8b5cf6;
+      --red: #ef4444;
+      --r: 8px;
+      --r-lg: 12px;
+      --sidebar-w: 240px;
+      --panel-w: 300px;
+      --ease: cubic-bezier(0.4,0,0.2,1);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', 'Microsoft YaHei', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-thumb { background: rgba(59,130,246,0.25); border-radius: 3px; }
+
+    .app { display: flex; height: 100vh; }
+
+    /* ===== Sidebar ===== */
+    .sidebar {
+      width: var(--sidebar-w);
+      min-width: var(--sidebar-w);
+      background: var(--sidebar);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+    }
+    .brand {
+      display: flex; align-items: center; gap: 10px;
+      padding: 20px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand-logo {
+      width: 36px; height: 36px; border-radius: var(--r);
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 12px rgba(59,130,246,0.35);
+    }
+    .brand-logo svg { width: 20px; height: 20px; color: #fff; }
+    .brand-name { font-size: 15px; font-weight: 700; letter-spacing: -0.02em; }
+    .nav { flex: 1; padding: 12px 10px; overflow-y: auto; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: var(--r);
+      font-size: 13px; color: var(--text-2);
+      cursor: pointer; transition: all .2s var(--ease);
+      border: 1px solid transparent; margin-bottom: 2px;
+      text-decoration: none;
+    }
+    .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; opacity: .7; }
+    .nav-item:hover { background: rgba(59,130,246,0.06); color: var(--text); }
+    .nav-item.active {
+      background: var(--blue-dim); color: var(--text);
+      border-color: rgba(59,130,246,0.2);
+    }
+    .nav-item.active svg { opacity: 1; color: var(--blue); }
+    .nav-sub { padding-left: 28px; }
+    .nav-sub .nav-item { font-size: 12.5px; padding: 8px 12px; }
+    .nav-group-title {
+      font-size: 11px; color: var(--text-3); padding: 14px 12px 6px;
+      text-transform: uppercase; letter-spacing: .06em; font-weight: 600;
+    }
+    .sidebar-user {
+      padding: 14px 16px; border-top: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .user-avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: linear-gradient(135deg, #6366f1, #3b82f6);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 600;
+    }
+    .user-info { flex: 1; min-width: 0; }
+    .user-name { font-size: 13px; font-weight: 600; }
+    .user-role { font-size: 11px; color: var(--text-3); }
+    .logout-btn {
+      margin-left: auto; font-size: 11px; color: var(--text-3);
+      background: none; border: none; cursor: pointer; padding: 4px 8px; flex-shrink: 0;
+    }
+    .logout-btn:hover { color: var(--red); }
+
+    /* ===== Main ===== */
+    .main {
+      flex: 1; display: flex; flex-direction: column;
+      min-width: 0; overflow: hidden;
+    }
+    .page-header {
+      padding: 20px 28px 16px;
+      display: flex; align-items: flex-start; justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .page-header h1 { font-size: 18px; font-weight: 700; }
+    .page-header p { font-size: 12px; color: var(--text-3); margin-top: 4px; }
+    .header-actions { display: flex; align-items: center; gap: 10px; }
+    .btn-ghost {
+      padding: 7px 14px; border-radius: var(--r);
+      border: 1px solid var(--border-light);
+      background: transparent; color: var(--text-2);
+      font-size: 12px; cursor: pointer; transition: all .2s;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .btn-ghost:hover { border-color: rgba(239,68,68,0.4); color: var(--red); }
+    .toggle-wrap {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; color: var(--text-3);
+    }
+    .toggle {
+      width: 32px; height: 18px; border-radius: 999px;
+      background: rgba(59,130,246,0.25); position: relative; cursor: pointer;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-knob {
+      position: absolute; width: 14px; height: 14px; border-radius: 50%;
+      background: #fff; top: 2px; left: 2px; transition: transform .2s;
+    }
+    .toggle input:checked ~ .toggle-knob { transform: translateX(14px); }
+    .toggle input:checked ~ .toggle { background: var(--blue); }
+
+    /* Composer at bottom */
+    .input-section {
+      padding: 12px 28px 16px; flex-shrink: 0;
+      border-top: 1px solid var(--border);
+      background: rgba(13, 20, 36, 0.95);
+    }
+    .input-box {
+      display: flex; align-items: flex-end; gap: 10px;
+      padding: 12px 14px;
+      background: var(--card);
+      border: 1px solid var(--border-light);
+      border-radius: var(--r-lg);
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .input-box:focus-within {
+      border-color: rgba(59,130,246,0.5);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+    }
+    .input-box textarea {
+      flex: 1; border: none; outline: none; background: transparent;
+      color: var(--text); font-size: 14px; font-family: inherit;
+      line-height: 1.5; resize: none; min-height: 24px; max-height: 120px;
+    }
+    .input-box textarea::placeholder { color: var(--text-3); }
+    .input-tools { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .tool-btn {
+      width: 32px; height: 32px; border: none; border-radius: var(--r);
+      background: transparent; color: var(--text-3); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .2s;
+    }
+    .tool-btn:hover { background: rgba(255,255,255,0.05); color: var(--text-2); }
+    .send-btn {
+      width: 36px; height: 36px; border: none; border-radius: var(--r);
+      background: var(--blue); color: #fff; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .2s; box-shadow: 0 2px 8px rgba(59,130,246,0.4);
+    }
+    .send-btn:hover { background: #2563eb; transform: scale(1.03); }
+    .send-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+    /* Suggestions */
+    .suggestions {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      padding: 12px 28px 8px; flex-shrink: 0;
+    }
+    .sug-pill {
+      padding: 6px 14px; border-radius: 999px;
+      border: 1px solid var(--border-light);
+      background: var(--card); color: var(--text-2);
+      font-size: 12px; cursor: pointer; transition: all .2s;
+      white-space: nowrap;
+    }
+    .sug-pill:hover {
+      border-color: rgba(59,130,246,0.4);
+      color: var(--blue); background: var(--blue-dim);
+    }
+
+    /* Item name confirm options */
+    .confirm-options {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      margin-top: 14px; padding-top: 12px;
+      border-top: 1px dashed var(--border-light);
+    }
+    .confirm-label {
+      width: 100%; font-size: 12px; color: var(--text-3); margin-bottom: 2px;
+    }
+    .confirm-btn {
+      padding: 8px 16px; border-radius: var(--r);
+      border: 1px solid rgba(59,130,246,0.35);
+      background: var(--blue-dim); color: var(--blue);
+      font-size: 13px; font-weight: 500; cursor: pointer; transition: all .2s;
+    }
+    .confirm-btn:hover {
+      background: var(--blue); color: #fff; border-color: var(--blue);
+    }
+
+    /* Chat scroll */
+    .chat-scroll {
+      flex: 1; overflow-y: auto; padding: 16px 28px 24px;
+    }
+    .chat-inner { max-width: 900px; }
+
+    /* Welcome */
+    .welcome {
+      text-align: center; padding: 48px 20px;
+      color: var(--text-3);
+    }
+    .welcome-icon {
+      width: 56px; height: 56px; margin: 0 auto 16px;
+      border-radius: 14px; background: var(--blue-dim);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .welcome h2 { font-size: 18px; color: var(--text); margin-bottom: 8px; }
+    .welcome p { font-size: 13px; line-height: 1.6; max-width: 420px; margin: 0 auto; }
+
+    /* Q&A Cards */
+    .qa-block { margin-bottom: 28px; animation: fadeUp .35s var(--ease); }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .q-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--r-lg); padding: 14px 16px; margin-bottom: 12px;
+    }
+    .q-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .q-label {
+      font-size: 11px; color: var(--blue); font-weight: 600;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .q-label::before {
+      content: ''; width: 6px; height: 6px; border-radius: 50%;
+      background: var(--blue);
+    }
+    .q-actions { display: flex; gap: 4px; }
+    .q-action {
+      width: 28px; height: 28px; border: none; border-radius: 6px;
+      background: transparent; color: var(--text-3); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .15s;
+    }
+    .q-action:hover { background: rgba(255,255,255,0.06); color: var(--text-2); }
+    .q-text { font-size: 14px; line-height: 1.6; color: var(--text); }
+    .q-meta { font-size: 11px; color: var(--text-3); margin-top: 8px; }
+
+    .a-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--r-lg); padding: 16px 18px;
+    }
+    .a-header {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+    }
+    .a-avatar {
+      width: 28px; height: 28px; border-radius: 6px;
+      background: linear-gradient(135deg, #3b82f6, #6366f1);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700;
+    }
+    .a-label { font-size: 12px; font-weight: 600; color: var(--text-2); }
+    .a-content {
+      font-size: 14px; line-height: 1.75; color: var(--text);
+      white-space: pre-wrap; overflow-wrap: break-word;
+    }
+    .a-content.error { color: var(--red); }
+
+    /* Horizontal RAG Pipeline */
+    .rag-flow {
+      margin-top: 16px; padding: 14px 16px;
+      background: rgba(0,0,0,0.2); border-radius: var(--r);
+      border: 1px solid var(--border);
+      overflow-x: auto;
+    }
+    .rag-flow-title {
+      font-size: 11px; color: var(--text-3); margin-bottom: 12px;
+      font-weight: 600; letter-spacing: .04em;
+    }
+    .rag-steps {
+      display: flex; align-items: flex-start; gap: 0; min-width: max-content;
+    }
+    .rag-step {
+      display: flex; flex-direction: column; align-items: center;
+      min-width: 110px; position: relative;
+    }
+    .rag-step:not(:last-child)::after {
+      content: ''; position: absolute;
+      top: 16px; left: calc(50% + 20px); width: calc(100% - 40px);
+      height: 2px; background: var(--border-light);
+    }
+    .rag-step.done:not(:last-child)::after { background: var(--blue); }
+    .rag-step-icon {
+      width: 32px; height: 32px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; margin-bottom: 6px; position: relative; z-index: 1;
+      border: 2px solid var(--border-light);
+      background: var(--card); color: var(--text-3);
+      transition: all .3s;
+    }
+    .rag-step.running .rag-step-icon {
+      border-color: var(--blue); color: var(--blue);
+      background: var(--blue-dim); animation: pulse 1.5s infinite;
+    }
+    .rag-step.done .rag-step-icon {
+      border-color: var(--green); color: var(--green);
+      background: rgba(16,185,129,0.12);
+    }
+    @keyframes pulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.3); }
+      50% { box-shadow: 0 0 0 6px rgba(59,130,246,0); }
+    }
+    .rag-step-name { font-size: 11px; font-weight: 600; color: var(--text-2); text-align: center; }
+    .rag-step-meta { font-size: 10px; color: var(--text-3); margin-top: 2px; text-align: center; }
+
+    .a-stats {
+      display: flex; gap: 16px; margin-top: 12px; padding-top: 12px;
+      border-top: 1px solid var(--border);
+      font-size: 11px; color: var(--text-3);
+    }
+    .a-stats span { display: flex; align-items: center; gap: 4px; }
+
+    /* Typing */
+    .typing { display: inline-flex; gap: 4px; padding: 4px 0; }
+    .typing i {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--blue); animation: bounce 1.4s infinite;
+    }
+    .typing i:nth-child(2) { animation-delay: .16s; }
+    .typing i:nth-child(3) { animation-delay: .32s; }
+    @keyframes bounce {
+      0%,60%,100% { transform: translateY(0); opacity: .4; }
+      30% { transform: translateY(-5px); opacity: 1; }
+    }
+
+    .answer-images { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+    .answer-images img {
+      max-width: min(100%, 480px); max-height: 360px;
+      border-radius: var(--r); border: 1px solid var(--border);
+    }
+
+    /* ===== Right Panel ===== */
+    .right-panel {
+      width: var(--panel-w); min-width: var(--panel-w);
+      background: var(--sidebar);
+      border-left: 1px solid var(--border);
+      overflow-y: auto; padding: 16px 14px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .panel-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--r-lg); overflow: hidden;
+    }
+    .panel-head {
+      padding: 12px 14px; border-bottom: 1px solid var(--border);
+      font-size: 13px; font-weight: 600;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .panel-head svg { width: 16px; height: 16px; color: var(--blue); }
+    .panel-body { padding: 12px 14px; }
+    .ref-item {
+      padding: 10px 0; border-bottom: 1px solid var(--border);
+    }
+    .ref-item:last-child { border-bottom: none; }
+    .ref-name {
+      font-size: 12px; font-weight: 600; color: var(--text);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .ref-name svg { width: 14px; height: 14px; color: var(--amber); flex-shrink: 0; }
+    .ref-meta { font-size: 11px; color: var(--text-3); margin-top: 4px; }
+    .ref-score {
+      display: inline-block; margin-top: 4px;
+      font-size: 10px; padding: 2px 8px; border-radius: 999px;
+      background: rgba(16,185,129,0.12); color: var(--green); font-weight: 600;
+    }
+    .ref-link {
+      display: inline-block; margin-top: 6px;
+      font-size: 11px; color: var(--blue); cursor: pointer;
+      text-decoration: none;
+    }
+    .ref-link:hover { text-decoration: underline; }
+    .related-list { list-style: none; }
+    .related-list li {
+      font-size: 12px; color: var(--text-2); padding: 8px 0;
+      border-bottom: 1px solid var(--border); cursor: pointer;
+      line-height: 1.4; transition: color .15s;
+    }
+    .related-list li:last-child { border-bottom: none; }
+    .related-list li:hover { color: var(--blue); }
+    .related-list li::before { content: '• '; color: var(--blue); }
+    .cache-row {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 12px; padding: 6px 0;
+    }
+    .cache-row span:first-child { color: var(--text-3); }
+    .cache-badge {
+      padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600;
+    }
+    .cache-badge.miss { background: rgba(245,158,11,0.12); color: var(--amber); }
+    .cache-badge.hit { background: rgba(16,185,129,0.12); color: var(--green); }
+    .empty-hint { font-size: 12px; color: var(--text-3); text-align: center; padding: 16px 0; }
+
+    .file-warn {
+      display: none;
+      position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+      background: #b45309; color: #fff; text-align: center;
+      padding: 10px 16px; font-size: 13px; font-weight: 600;
+    }
+    body.file-mode .file-warn { display: block; }
+    body.file-mode .app { margin-top: 42px; height: calc(100vh - 42px); }
+    @media (max-width: 1100px) { .right-panel { display: none; } }
+    @media (max-width: 768px) { .sidebar { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="file-warn" id="fileWarn">
+    当前为本地文件打开，无法连接后端。请访问：
+    <a href="http://127.0.0.1:8001/html/new" style="color:#fff;text-decoration:underline">http://127.0.0.1:8001/html/new</a>
+  </div>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 017 7c0 2.5-1.5 4.5-3 6l-1 1v3H9v-3l-1-1c-1.5-1.5-3-3.5-3-6a7 7 0 017-7z"/><line x1="9" y1="22" x2="15" y2="22"/></svg>
+        </div>
+        <span class="brand-name">掌柜智库</span>
+      </div>
+      <nav class="nav">
+        <a class="nav-item active" href="/html/new">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          智能问答
+        </a>
+        <div class="nav-group-title">知识库管理</div>
+        <div class="nav-sub">
+          <a class="nav-item" id="navImport" href="#">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+            文件上传
+          </a>
+          <div class="nav-item" style="opacity:.5;cursor:default">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            文档列表
+          </div>
+          <div class="nav-item" style="opacity:.5;cursor:default">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            Chunk 管理
+          </div>
+        </div>
+        <div class="nav-item" style="opacity:.5;cursor:default">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          历史记录
+        </div>
+        <div class="nav-item" style="opacity:.5;cursor:default">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          系统设置
+        </div>
+      </nav>
+      <div class="sidebar-user">
+        <div class="user-avatar">A</div>
+        <div class="user-info">
+          <div class="user-name">—</div>
+          <div class="user-role">—</div>
+        </div>
+        <button type="button" class="logout-btn" id="btnLogout">注销</button>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <header class="page-header">
+        <div>
+          <h1>掌柜智库 · 企业知识引擎</h1>
+          <p>基于 RAG 技术的企业级知识库问答，支持语义检索与智能推理</p>
+        </div>
+        <div class="header-actions">
+          <label class="toggle-wrap">
+            流式输出
+            <label class="toggle">
+              <input type="checkbox" id="streamToggle" checked />
+              <span class="toggle-knob"></span>
+            </label>
+          </label>
+          <button class="btn-ghost" id="btnClear">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+            清空对话
+          </button>
+        </div>
+      </header>
+
+      <div class="chat-scroll" id="chatArea">
+        <div class="chat-inner" id="chatContainer">
+          <div class="welcome" id="welcomeScreen">
+            <div class="welcome-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><path d="M12 2a7 7 0 017 7c0 2.5-1.5 4.5-3 6l-1 1v3H9v-3l-1-1c-1.5-1.5-3-3.5-3-6a7 7 0 017-7z"/></svg>
+            </div>
+            <h2>开始您的智能问答</h2>
+            <p>输入问题或点击推荐问题，AI 将基于企业知识库为您精准解答</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="suggestions" id="suggestions">
+        <span class="empty-hint" style="padding:0">加载推荐问题中...</span>
+      </div>
+
+      <div class="input-section">
+        <div class="input-box">
+          <textarea id="input" rows="1" placeholder="请输入您的问题..."></textarea>
+          <div class="input-tools">
+            <button class="tool-btn" type="button" title="上传图片（开发中）">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            </button>
+            <button class="send-btn" id="sendBtn" type="button" title="发送">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Right Panel -->
+    <aside class="right-panel">
+      <div class="panel-card">
+        <div class="panel-head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+          引用来源
+        </div>
+        <div class="panel-body" id="refPanel">
+          <div class="empty-hint">发送问题后将展示检索到的文档来源</div>
+        </div>
+      </div>
+      <div class="panel-card">
+        <div class="panel-head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          相关问题推荐
+        </div>
+        <div class="panel-body" id="relatedPanel">
+          <ul class="related-list" id="relatedList">
+            <li class="empty-hint" style="border:none;padding:8px 0">加载中...</li>
+          </ul>
+        </div>
+      </div>
+      <div class="panel-card">
+        <div class="panel-head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+          缓存信息
+        </div>
+        <div class="panel-body">
+          <div class="cache-row"><span>查询缓存</span><span class="cache-badge miss" id="cacheStatus">Miss</span></div>
+          <div class="cache-row"><span>API 状态</span><span id="apiStatus" style="color:var(--text-3);font-size:11px">检测中...</span></div>
+          <div class="cache-row"><span>当前用户</span><span id="sessionDisplay" style="font-size:10px;color:var(--text-3);max-width:140px;overflow:hidden;text-overflow:ellipsis">—</span></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script src="/static/auth.js"></script>
+  <script>
+    const API_BASE = location.origin.startsWith('http') ? location.origin : 'http://127.0.0.1:8001';
+    if (location.protocol === 'file:') {
+      document.body.classList.add('file-mode');
+    }
+    const IMPORT_URL = location.protocol === 'file:'
+      ? 'import_new.html'
+      : `${location.protocol}//${location.hostname || '127.0.0.1'}:8001/html/import`;
+    document.getElementById('navImport').addEventListener('click', (e) => {
+      e.preventDefault();
+      RagAuth.navigateToImport();
+    });
+    document.getElementById('btnLogout').addEventListener('click', () => RagAuth.logout());
+
+    RagAuth.requireAuth().then(user => {
+      if (user) RagAuth.bindUserSidebar(user);
+    });
+
+    const chatContainer = document.getElementById('chatContainer');
+    const chatArea = document.getElementById('chatArea');
+    const inputEl = document.getElementById('input');
+    const sendBtn = document.getElementById('sendBtn');
+    const btnClear = document.getElementById('btnClear');
+    const streamToggle = document.getElementById('streamToggle');
+    const welcomeScreen = document.getElementById('welcomeScreen');
+    const suggestionsEl = document.getElementById('suggestions');
+    const relatedList = document.getElementById('relatedList');
+    const refPanel = document.getElementById('refPanel');
+    const apiStatus = document.getElementById('apiStatus');
+    const sessionDisplay = document.getElementById('sessionDisplay');
+
+    function newStreamSessionId() {
+      return 'sess-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    }
+
+    let currentUser = null;
+
+    const RAG_STAGES = [
+      { key: 'query_rewrite', name: 'Query Rewrite', icon: '✎' },
+      { key: 'hybrid_search', name: 'Hybrid Search', icon: '🔍' },
+      { key: 'context_build', name: 'Context Compression', icon: '📦' },
+      { key: 'rerank', name: 'Rerank', icon: '⚡' },
+      { key: 'llm_generate', name: 'LLM Generate', icon: '🤖' },
+    ];
+
+
+    function scrollBottom() { chatArea.scrollTop = chatArea.scrollHeight; }
+    function nowTime() { return new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }); }
+    function formatTime(ts) {
+      if (!ts) return nowTime();
+      const d = new Date(Number(ts) * 1000);
+      return isNaN(d.getTime()) ? nowTime() : d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    }
+    function escapeHtml(s) {
+      return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+    }
+    function isImageUrl(url) {
+      try { return /\.(png|jpe?g|gif|webp|bmp|svg)/i.test(new URL(url).pathname); }
+      catch { return /\.(png|jpe?g|gif|webp|bmp|svg)(\?|#|$)/i.test(url || ''); }
+    }
+    function normalizeUrl(u) { return String(u || '').trim().replace(/\s/g, '%20'); }
+    function dedupe(arr) {
+      const s = new Set(), o = [];
+      for (const x of (Array.isArray(arr) ? arr : [])) {
+        const v = String(x || '');
+        if (v && !s.has(v)) { s.add(v); o.push(v); }
+      }
+      return o;
+    }
+    function extractUrls(text) {
+      const matches = String(text || '').match(/(https?:\/\/[^\s]+)/g) || [];
+      const trimTail = (u) => String(u || '').replace(/[)\]}'">，。,;；\]】）＞]+$/g, '');
+      const trimHead = (u) => String(u || '').replace(/^[<([{'"]+|^[＜（【\[]+/g, '');
+      const urls = [];
+      for (const m of matches) {
+        const u = trimHead(trimTail(m));
+        if (u) urls.push(u);
+      }
+      return dedupe(urls);
+    }
+    function parseAnswerAndImages(text) {
+      const raw = String(text || '');
+      const re = /【\s*图片\s*】|\[\s*图片\s*\]/g;
+      let m, lastIdx = -1, lastLen = 0;
+      while ((m = re.exec(raw)) !== null) { lastIdx = m.index; lastLen = m[0].length; }
+      if (lastIdx === -1) return { text: raw, images: [] };
+      const before = raw.slice(0, lastIdx).trimEnd();
+      const after = raw.slice(lastIdx + lastLen).trim();
+      const urls = [];
+      for (const line of after.split(/\r?\n/).map(l => l.trim()).filter(Boolean)) {
+        if (line.startsWith('http://') || line.startsWith('https://')) urls.push(line);
+        else urls.push(...extractUrls(line));
+      }
+      const seen = new Set(), imgs = [];
+      for (const u of urls) {
+        const n = normalizeUrl(u);
+        if (isImageUrl(n) && !seen.has(n)) { seen.add(n); imgs.push(n); }
+      }
+      return { text: before, images: imgs };
+    }
+
+    function parseConfirmOptions(text) {
+      const t = String(text || '');
+      const m = t.match(/你是要询问[:：]\s*(.+?)\s*这些/);
+      if (m) {
+        return m[1].split(/[,，、]/).map(s => s.trim()).filter(Boolean);
+      }
+      return [];
+    }
+
+    function attachConfirmOptions(aContentEl, answerText, extraOptions) {
+      if (!aContentEl) return;
+      aContentEl.querySelector('.confirm-options')?.remove();
+      const opts = (extraOptions && extraOptions.length) ? extraOptions : parseConfirmOptions(answerText);
+      if (!opts.length) return;
+      const wrap = document.createElement('div');
+      wrap.className = 'confirm-options';
+      const label = document.createElement('div');
+      label.className = 'confirm-label';
+      label.textContent = '请点击选择要咨询的主体：';
+      wrap.appendChild(label);
+      opts.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'confirm-btn';
+        btn.textContent = opt;
+        btn.addEventListener('click', () => {
+          inputEl.value = opt;
+          onSend();
+        });
+        wrap.appendChild(btn);
+      });
+      aContentEl.appendChild(wrap);
+    }
+
+    function finishAnswerContent(botEl, answerText, imageUrls, extraOptions) {
+      const answerEl = botEl.querySelector('.answer-content');
+      renderAnswerImages(answerEl, answerText || '', imageUrls || []);
+      attachConfirmOptions(botEl.querySelector('.a-content'), answerText || '', extraOptions);
+      scrollBottom();
+    }
+
+    function renderAnswerImages(container, answerText, candidateUrls) {
+      const { text, images: blockImgs } = parseAnswerAndImages(answerText);
+      const candidates = (candidateUrls || []).map(normalizeUrl).filter(isImageUrl);
+      const looseImgs = extractUrls(answerText).map(normalizeUrl).filter(isImageUrl);
+      const allImgs = dedupe([...blockImgs, ...candidates, ...looseImgs]);
+      container.textContent = '';
+      const textEl = document.createElement('div');
+      textEl.textContent = (text || '').trim() || (allImgs.length ? '' : '（已完成，但未返回答案）');
+      container.appendChild(textEl);
+      if (allImgs.length) {
+        const wrap = document.createElement('div');
+        wrap.className = 'answer-images';
+        for (const url of allImgs) {
+          const img = document.createElement('img');
+          img.src = url; img.loading = 'lazy'; img.alt = '参考图片';
+          img.referrerPolicy = 'no-referrer';
+          img.addEventListener('error', () => img.style.display = 'none');
+          wrap.appendChild(img);
+          const link = document.createElement('a');
+          link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+          link.textContent = url;
+          link.style.cssText = 'font-size:11px;color:var(--text-3);word-break:break-all;display:block;margin-top:4px';
+          wrap.appendChild(link);
+        }
+        container.appendChild(wrap);
+      }
+    }
+
+    function createPipelineHTML(id) {
+      const steps = RAG_STAGES.map(s => `
+        <div class="rag-step" data-stage="${s.key}">
+          <div class="rag-step-icon">${s.icon}</div>
+          <div class="rag-step-name">${s.name}</div>
+          <div class="rag-step-meta">等待中</div>
+        </div>
+      `).join('');
+      return `<div class="rag-flow" id="${id}">
+        <div class="rag-flow-title">RAG EXECUTION PATH</div>
+        <div class="rag-steps">${steps}</div>
+      </div>`;
+    }
+
+    function updatePipelineStage(pipelineEl, stageKey, status, ms) {
+      if (!pipelineEl) return;
+      const step = pipelineEl.querySelector(`[data-stage="${stageKey}"]`);
+      if (!step) return;
+      step.className = 'rag-step ' + (status === 'done' ? 'done' : status === 'running' ? 'running' : '');
+      const meta = step.querySelector('.rag-step-meta');
+      if (status === 'running') meta.textContent = '处理中...';
+      else if (status === 'done') meta.textContent = ms ? `${ms}ms` : '完成';
+      else meta.textContent = '等待中';
+    }
+
+    let _currentPipeline = null;
+    let _stageTimes = {};
+    let _queryStart = 0;
+    function setPipelineRef(el) { _currentPipeline = el; _stageTimes = {}; _queryStart = Date.now(); }
+
+    function mapProgressToStage(doneList, runningList) {
+      const done = doneList || [], running = runningList || [];
+      if (/item_name|意图|确认/i.test([...done, ...running].join(' '))) updateByStageKey('query_rewrite');
+      if (/search|embedding|hyde|检索|向量/i.test([...done, ...running].join(' '))) updateByStageKey('hybrid_search');
+      if (/rerank|重排|精排/i.test([...done, ...running].join(' '))) updateByStageKey('rerank');
+      if (/rrf|context|上下文|融合/i.test([...done, ...running].join(' '))) updateByStageKey('context_build');
+      if (/answer|output|生成|llm/i.test([...done, ...running].join(' '))) updateByStageKey('llm_generate');
+      for (const d of done) {
+        if (/item_name|意图/i.test(d)) setStageDone('query_rewrite');
+        if (/search|embedding|hyde/i.test(d)) setStageDone('hybrid_search');
+        if (/rerank/i.test(d)) setStageDone('rerank');
+        if (/rrf|context/i.test(d)) setStageDone('context_build');
+        if (/answer|output/i.test(d)) setStageDone('llm_generate');
+      }
+    }
+    function updateByStageKey(key) {
+      if (!_currentPipeline) return;
+      if (!_stageTimes[key]) _stageTimes[key] = Date.now();
+      updatePipelineStage(_currentPipeline, key, 'running');
+    }
+    function setStageDone(key) {
+      if (!_currentPipeline) return;
+      const ms = _stageTimes[key] ? Date.now() - _stageTimes[key] : null;
+      updatePipelineStage(_currentPipeline, key, 'done', ms);
+    }
+
+    function buildPreviewUrl(r) {
+      if (r.type === 'web' && r.url) return r.url;
+      let path = r.view_url || '';
+      if (!path && r.file_title) {
+        const params = new URLSearchParams({ file_title: r.file_title });
+        if (r.start_line != null) params.set('start_line', String(r.start_line));
+        if (r.end_line != null) params.set('end_line', String(r.end_line));
+        path = `/documents/preview/html?${params.toString()}`;
+      }
+      if (!path) return null;
+      const token = RagAuth.getAccessToken() || '';
+      const sep = path.includes('?') ? '&' : '?';
+      return `${API_BASE}${path}${token ? `${sep}token=${encodeURIComponent(token)}` : ''}`;
+    }
+
+    function updateRefs(refs) {
+      const list = refs && refs.length ? refs : [];
+      if (!list.length) {
+        refPanel.innerHTML = '<div class="empty-hint">发送问题后将展示检索到的文档来源</div>';
+        return;
+      }
+      refPanel.innerHTML = list.map(r => {
+        const docName = r.name || r.file_title || '未知文档';
+        let meta = '';
+        if (r.type === 'web') {
+          meta = r.url ? `<a href="${escapeHtml(r.url)}" target="_blank" rel="noopener">网络搜索</a>` : '网络搜索';
+        } else if (r.page) {
+          meta = `行 ${escapeHtml(r.page)}` + (r.title ? ` · ${escapeHtml(r.title)}` : '');
+        } else {
+          meta = r.title ? escapeHtml(r.title) : '';
+        }
+        const previewUrl = buildPreviewUrl(r);
+        const linkHtml = previewUrl
+          ? `<a class="ref-link" href="${escapeHtml(previewUrl)}" target="_blank" rel="noopener">查看原文</a>`
+          : `<span class="ref-link" style="opacity:0.5;cursor:default">查看原文</span>`;
+        return `
+        <div class="ref-item">
+          <div class="ref-name">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            ${escapeHtml(docName)}
+          </div>
+          <div class="ref-meta">${meta}</div>
+          ${r.score ? `<span class="ref-score">相似度 ${(r.score > 1 ? r.score / 100 : r.score).toFixed(2)}</span>` : ''}
+          ${linkHtml}
+        </div>`;
+      }).join('');
+    }
+
+    function hideWelcome() { if (welcomeScreen) welcomeScreen.style.display = 'none'; }
+    function hideSuggestions() { if (suggestionsEl) suggestionsEl.style.display = 'none'; }
+
+    function copyText(text) {
+      navigator.clipboard.writeText(text).catch(() => {});
+    }
+
+    function addUserMsg(text, ts) {
+      hideWelcome();
+      hideSuggestions();
+      const id = 'q-' + Math.random().toString(36).slice(2);
+      chatContainer.insertAdjacentHTML('beforeend', `
+        <div class="qa-block" id="${id}">
+          <div class="q-card">
+            <div class="q-header">
+              <span class="q-label">用户提问</span>
+              <div class="q-actions">
+                <button class="q-action copy-btn" title="复制">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="q-text">${escapeHtml(text)}</div>
+            <div class="q-meta">${formatTime(ts)}</div>
+          </div>
+        </div>
+      `);
+      document.getElementById(id).querySelector('.copy-btn')
+        ?.addEventListener('click', () => copyText(text));
+      scrollBottom();
+      return id;
+    }
+
+    function addBotSkeleton(qBlockId) {
+      hideWelcome();
+      const pipeId = 'pipe-' + Math.random().toString(36).slice(2);
+      const botId = 'a-' + Math.random().toString(36).slice(2);
+      const block = document.getElementById(qBlockId);
+      block.insertAdjacentHTML('beforeend', `
+        <div class="a-card" id="${botId}">
+          <div class="a-header">
+            <div class="a-avatar">AI</div>
+            <span class="a-label">掌柜智库 · AI 回答</span>
+          </div>
+          <div class="a-content">
+            <div class="typing"><i></i><i></i><i></i></div>
+            <div class="answer-content"></div>
+          </div>
+          ${createPipelineHTML(pipeId)}
+          <div class="a-stats">
+            <span id="stat-time-${botId}">⏱ —</span>
+            <span id="stat-tokens-${botId}">📊 — tokens</span>
+            <span>💾 Cache Miss</span>
+          </div>
+        </div>
+      `);
+      setPipelineRef(document.getElementById(pipeId));
+      scrollBottom();
+      return document.getElementById(botId);
+    }
+
+    function finalizeBot(el, answer, error, imageUrls, refs) {
+      el.querySelector('.typing')?.remove();
+      const answerEl = el.querySelector('.answer-content');
+      if (error) {
+        answerEl.textContent = `抱歉，处理失败：\n${error}`;
+        answerEl.classList.add('error');
+      } else if (answer !== null) {
+        finishAnswerContent(el, answer || '', imageUrls || [], null);
+      }
+      if (_currentPipeline) {
+        RAG_STAGES.forEach(s => {
+          if (!s.key) return;
+          updatePipelineStage(_currentPipeline, s.key, 'done', _stageTimes[s.key] ? Date.now() - _stageTimes[s.key] : null);
+        });
+      }
+      const elapsed = _queryStart ? ((Date.now() - _queryStart) / 1000).toFixed(2) : '—';
+      const statTime = el.querySelector('[id^="stat-time-"]');
+      const statTokens = el.querySelector('[id^="stat-tokens-"]');
+      if (statTime) statTime.textContent = `⏱ ${elapsed}s`;
+      if (statTokens) statTokens.textContent = '📊 — tokens';
+      if (refs && refs.length) updateRefs(refs);
+    }
+
+    if (suggestionsEl) {
+      suggestionsEl.addEventListener('click', e => {
+        const pill = e.target.closest('.sug-pill');
+        if (pill && pill.dataset.q) { inputEl.value = pill.dataset.q; onSend(); }
+      });
+    }
+    if (relatedList) {
+      relatedList.addEventListener('click', e => {
+        const li = e.target.closest('li[data-q]');
+        if (li && li.dataset.q) { inputEl.value = li.dataset.q; onSend(); }
+      });
+    }
+
+    inputEl.addEventListener('input', () => {
+      inputEl.style.height = 'auto';
+      inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+    });
+
+    async function apiHealth() {
+      try {
+        const res = await fetch(`${API_BASE}/health`);
+        if (!res.ok) throw new Error();
+        apiStatus.textContent = '已连接';
+        apiStatus.style.color = 'var(--green)';
+      } catch {
+        apiStatus.textContent = '未连接';
+        apiStatus.style.color = 'var(--red)';
+      }
+    }
+
+    function renderSuggestions(items) {
+      const list = Array.isArray(items) ? items : [];
+      const countMap = Object.fromEntries(list.map(it => [it.question, it.count]));
+      const questions = list.map(it => it.question).filter(Boolean);
+      if (!questions.length) {
+        const empty = '<span class="empty-hint" style="padding:0">暂无历史提问，发送问题后将在此展示高频推荐</span>';
+        if (suggestionsEl) suggestionsEl.innerHTML = empty;
+        if (relatedList) relatedList.innerHTML = '<li class="empty-hint" style="border:none;padding:8px 0">暂无推荐</li>';
+        return;
+      }
+      if (suggestionsEl) {
+        suggestionsEl.innerHTML = questions.map(q => {
+          const count = countMap[q] || 0;
+          const title = count > 1 ? `历史提问 ${count} 次` : '历史提问';
+          return `<button class="sug-pill" type="button" data-q="${escapeHtml(q)}" title="${title}">${escapeHtml(q)}</button>`;
+        }).join('');
+      }
+      if (relatedList) {
+        relatedList.innerHTML = questions.map(q => {
+          const count = countMap[q] || 0;
+          const title = count > 1 ? `历史提问 ${count} 次` : '历史提问';
+          return `<li data-q="${escapeHtml(q)}" title="${title}">${escapeHtml(q)}</li>`;
+        }).join('');
+      }
+    }
+
+    async function loadSuggestions() {
+      try {
+        const res = await RagAuth.authFetch(`${API_BASE}/suggestions?limit=10`);
+        if (!res.ok) {
+          renderSuggestions([]);
+          return;
+        }
+        const data = await res.json();
+        const items = Array.isArray(data.items) ? data.items : [];
+        renderSuggestions(items);
+      } catch {
+        renderSuggestions([]);
+      }
+    }
+
+    async function loadHistory() {
+      try {
+        const res = await RagAuth.authFetch(`${API_BASE}/history?limit=50`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const items = Array.isArray(data.items) ? data.items : [];
+        if (!items.length) return;
+        hideWelcome();
+        suggestionsEl.style.display = 'none';
+        chatContainer.querySelectorAll('.qa-block').forEach(el => el.remove());
+        const sorted = [...items].sort((a, b) => Number(a.ts || 0) - Number(b.ts || 0));
+        let pendingQ = null;
+        let lastCitations = null;
+        for (const item of sorted) {
+          if (item.role === 'user') {
+            pendingQ = addUserMsg(item.text || '', item.ts);
+          } else if (item.role === 'assistant') {
+            const qId = pendingQ || addUserMsg('（历史提问）', item.ts);
+            const botEl = addBotSkeleton(qId);
+            botEl.querySelector('.typing')?.remove();
+            finishAnswerContent(botEl, item.text || '', item.image_urls || [], item.item_names || null);
+            const pipe = botEl.querySelector('.rag-flow');
+            if (pipe) RAG_STAGES.forEach(s => updatePipelineStage(pipe, s.key, 'done', 120));
+            if (item.citations && item.citations.length) {
+              lastCitations = item.citations;
+            }
+            pendingQ = null;
+          }
+        }
+        if (lastCitations && lastCitations.length) {
+          updateRefs(lastCitations);
+        }
+        scrollBottom();
+      } catch {}
+    }
+
+    async function submitQuery(text, sessionId) {
+      const res = await RagAuth.authFetch(`${API_BASE}/query`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: text, session_id: sessionId, is_stream: streamToggle.checked })
+      });
+      if (!res.ok) throw new Error(await res.text() || '请求失败');
+      return await res.json();
+    }
+
+    function updateCacheStatus(hit) {
+      const el = document.getElementById('cacheStatus');
+      if (!el) return;
+      el.textContent = hit ? 'Hit' : 'Miss';
+      el.className = 'cache-badge ' + (hit ? 'hit' : 'miss');
+    }
+
+    async function onSend() {
+      const text = (inputEl.value || '').trim();
+      if (!text) return;
+      inputEl.value = '';
+      inputEl.style.height = 'auto';
+      const qId = addUserMsg(text);
+      const botEl = addBotSkeleton(qId);
+      sendBtn.disabled = true;
+      document.getElementById('cacheStatus').textContent = 'Miss';
+      document.getElementById('cacheStatus').className = 'cache-badge miss';
+
+      try {
+        const isStream = streamToggle.checked;
+        const streamSessionId = newStreamSessionId();
+        const data = await submitQuery(text, streamSessionId);
+
+        if (!isStream) {
+          RAG_STAGES.forEach(s => setStageDone(s.key));
+          updateCacheStatus(!!data.cache_hit);
+          finalizeBot(botEl, data.answer, data.error, data.image_urls || [], data.citations || data.references || null);
+          loadSuggestions();
+          sendBtn.disabled = false;
+          return;
+        }
+
+        const { session_id } = data;
+        const answerEl = botEl.querySelector('.answer-content');
+        let rawAnswer = '';
+        let streamDone = false;
+        let sseToken = '';
+        try {
+          sseToken = encodeURIComponent(await RagAuth.fetchSseToken());
+        } catch {
+          sseToken = encodeURIComponent(RagAuth.getAccessToken() || '');
+        }
+        const es = new EventSource(`${API_BASE}/stream/${session_id}?token=${sseToken}`);
+
+        es.addEventListener('progress', e => {
+          try {
+            const d = JSON.parse(e.data || '{}');
+            mapProgressToStage(d.done_list, d.running_list);
+            if (d.status === 'completed') {
+              botEl.querySelector('.typing')?.remove();
+              sendBtn.disabled = false;
+            }
+          } catch {}
+        });
+
+        es.addEventListener('delta', e => {
+          try {
+            const d = JSON.parse(e.data || '{}');
+            if (d.delta) {
+              rawAnswer += d.delta;
+              botEl.querySelector('.typing')?.remove();
+              renderAnswerImages(answerEl, rawAnswer, []);
+              scrollBottom();
+            }
+          } catch {}
+        });
+
+        const onFinal = e => {
+          if (streamDone) return;
+          streamDone = true;
+          botEl.querySelector('.typing')?.remove();
+          try {
+            const d = JSON.parse(e.data || '{}');
+            const finalText = (d.answer && d.answer.trim()) ? d.answer : rawAnswer;
+            finishAnswerContent(botEl, finalText, d.image_urls || [], d.item_names || d.options || null);
+            if (_currentPipeline) {
+              RAG_STAGES.forEach(s => updatePipelineStage(_currentPipeline, s.key, 'done', _stageTimes[s.key] ? Date.now() - _stageTimes[s.key] : null));
+            }
+            const elapsed = _queryStart ? ((Date.now() - _queryStart) / 1000).toFixed(2) : '—';
+            const statTime = botEl.querySelector('[id^="stat-time-"]');
+            if (statTime) statTime.textContent = `⏱ ${elapsed}s`;
+            if (d.citations || d.references) updateRefs(d.citations || d.references);
+            updateCacheStatus(!!d.cache_hit);
+            loadSuggestions();
+          } catch {}
+          es.close();
+          sendBtn.disabled = false;
+        };
+        es.addEventListener('final', onFinal);
+        es.addEventListener('final_answer', onFinal);
+
+        es.onerror = () => {
+          if (streamDone) return;
+          streamDone = true;
+          botEl.querySelector('.typing')?.remove();
+          if (!rawAnswer.trim()) {
+            answerEl.textContent = 'SSE 连接中断，请重试';
+            answerEl.classList.add('error');
+          }
+          es.close();
+          sendBtn.disabled = false;
+        };
+      } catch (e) {
+        botEl.querySelector('.typing')?.remove();
+        const answerEl = botEl.querySelector('.answer-content');
+        answerEl.textContent = `请求失败：${e.message || e}\n\n请确认：\n1. 查询服务已启动（默认 :8001）\n2. 通过 http://127.0.0.1:8001/html 访问，不要双击 HTML 文件\n3. .env 中 OPENAI_API_KEY 等配置正确并已重启服务`;
+        answerEl.classList.add('error');
+        sendBtn.disabled = false;
+      }
+    }
+
+    sendBtn.addEventListener('click', onSend);
+    inputEl.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSend(); }
+    });
+    btnClear.addEventListener('click', async () => {
+      if (!confirm('确定要清空您的全部聊天记录吗？这将无法恢复。')) return;
+      try {
+        const res = await RagAuth.authFetch(`${API_BASE}/history`, { method: 'DELETE' });
+        if (!res.ok) alert('服务端清空失败，仅清空本地显示');
+      } catch {
+        alert('服务端清空失败，仅清空本地显示');
+      }
+      chatContainer.innerHTML = '';
+      chatContainer.appendChild(welcomeScreen);
+      welcomeScreen.style.display = '';
+      if (suggestionsEl) suggestionsEl.style.display = '';
+      refPanel.innerHTML = '<div class="empty-hint">发送问题后将展示检索到的文档来源</div>';
+    });
+
+    apiHealth();
+    setInterval(apiHealth, 5000);
+    RagAuth.requireAuth().then(user => {
+      if (!user) return;
+      currentUser = user;
+      const label = user.display_name || user.username || user.id || '—';
+      sessionDisplay.textContent = label;
+      sessionDisplay.title = `用户 ID: ${user.id || ''}`;
+      loadSuggestions();
+      loadHistory();
+    });
+    setTimeout(() => inputEl.focus(), 200);
+  </script>
+</body>
+</html>
