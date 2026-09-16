@@ -113,14 +113,15 @@ def stream(session_id, request: Request, _: CurrentUser = Depends(get_current_us
         media_type="text/event-stream"
     )
 
-def invoke_query_graph(session_id:str,query:str,is_stream:bool=False,user_id:str=None,roles:list[str]=None):
+def invoke_query_graph(session_id:str,query:str,is_stream:bool=False,user_id:str=None,roles:list[str]=None,department_id:str=""):
     # 执行 动态测试
     state = create_query_default_state(
         session_id=session_id,
         original_query=query,
         is_stream=is_stream,
         user_id=user_id,
-        roles=roles
+        roles=roles,
+        department_id=department_id,
     )
     # 创建一个队列 session_id <-- 数据
 
@@ -186,7 +187,8 @@ def query(
                                  query=query,
                                  is_stream=is_stream,
                                  user_id = current_user.id,
-                                 roles = current_user.roles
+                                 roles = current_user.roles,
+                                 department_id = current_user.department_id,
                                  )
         # 立即向下
         return QueryStreamResponse(
@@ -200,7 +202,8 @@ def query(
             query=query,
             is_stream=is_stream,
             user_id=current_user.id,
-            roles=current_user.roles
+            roles=current_user.roles,
+            department_id=current_user.department_id,
         )
         return QueryNotStreamResponse(
             message=f"{session_id}对应的任务已经处理完毕!!",
@@ -210,6 +213,8 @@ def query(
             image_urls=final_state.get("image_urls",[]) if final_state else [],
             citations=final_state.get("citations", []) if final_state else [],
             cache_hit=bool(final_state.get("cache_hit")) if final_state else False,
+            allowed_ids=final_state.get("allowed_knowledge_ids", []) if final_state else [],
+            denied_ids=final_state.get("denied_knowledge_ids", []) if final_state else [],
         )
 
 

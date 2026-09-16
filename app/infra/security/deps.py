@@ -6,7 +6,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.infra.persistence.auth_repository import auth_repository
 from app.infra.security.jwt_utils import TokenError, decode_access_token, decode_sse_token
-from app.infra.security.role_utils import ADMIN_ROLE
+from app.infra.security.role_utils import ADMIN_ROLE, has_button
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -17,6 +17,7 @@ class CurrentUser:
     username: str
     display_name: str
     roles: list[str]
+    department_id: str = ""
 
 
 def _build_current_user(payload: dict) -> CurrentUser:
@@ -31,6 +32,8 @@ def _build_current_user(payload: dict) -> CurrentUser:
         username=user.get("username", ""),
         display_name=user.get("display_name") or user.get("username", ""),
         roles=roles,
+        department_id=user.get("department_id", "") or "",
+
     )
 
 
@@ -78,3 +81,16 @@ async def get_current_user_sse(
             # 兼容旧版：URL 中仍传 access token
             return _user_from_access_token(token)
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="未登录或 Token 缺失")
+
+
+def require_button(button_key: str):
+    """按钮级功能权限依赖工厂：require_button("perm") 生成 FastAPI 依赖。
+    校验当前用户角色并集是否包含指定按钮权限（admin 直通）。"""
+    def _checker(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+        if not has_button(current_user.roles, button_key):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"缺少操作权限: {button_key}",
+            )
+        return current_user
+    return _checker

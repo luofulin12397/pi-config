@@ -6,6 +6,7 @@ from app.process.query.agent.nodes.node_history_compress import node_history_com
 from app.process.query.agent.nodes.node_item_name_confirm import node_item_name_confirm
 from app.process.query.agent.nodes.node_query_cache import node_query_cache
 from app.process.query.agent.nodes.node_rerank import node_rerank
+from app.process.query.agent.nodes.node_perm_filter import node_perm_filter
 from app.process.query.agent.nodes.node_rrf import node_rrf
 from app.process.query.agent.nodes.node_save_cache import node_save_cache
 from app.process.query.agent.nodes.node_search_embedding import node_search_embedding
@@ -27,6 +28,7 @@ query_graph_builder.add_node("node_search_embedding_hyde", node_search_embedding
 query_graph_builder.add_node("node_web_search_mcp", node_web_search_mcp)
 query_graph_builder.add_node("node_rrf", node_rrf)
 query_graph_builder.add_node("node_rerank", node_rerank)
+query_graph_builder.add_node("node_perm_filter", node_perm_filter)
 query_graph_builder.add_node("node_answer_output", node_answer_output)
 query_graph_builder.add_node("node_save_cache", node_save_cache)
 
@@ -81,7 +83,9 @@ query_graph_builder.add_edge("node_search_embedding", "node_rrf")
 query_graph_builder.add_edge("node_search_embedding_hyde", "node_rrf")
 query_graph_builder.add_edge("node_web_search_mcp", "node_rrf")
 query_graph_builder.add_edge("node_rrf", "node_rerank")
-query_graph_builder.add_edge("node_rerank", "node_answer_output")
+# M1-05：精排后先做四维权限过滤（仅放行切片进入提示词组装）
+query_graph_builder.add_edge("node_rerank", "node_perm_filter")
+query_graph_builder.add_edge("node_perm_filter", "node_answer_output")
 query_graph_builder.add_edge("node_answer_output", "node_save_cache")
 query_graph_builder.add_edge("node_save_cache", END)
 

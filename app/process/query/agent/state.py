@@ -39,6 +39,10 @@ class QueryGraphState(TypedDict):
     # 鉴权信息
     user_id: str
     roles: List[str]
+    department_id: str            # 直属部门（M1-05 四维权限判定用）
+    allowed_knowledge_ids: List[str]  # 鉴权放行的知识单元（审计/前端）
+    denied_knowledge_ids: List[str]   # 鉴权拦截的知识单元（审计/前端，绝不进提示词）
+    skip_cache: bool              # True 时 node_save_cache 跳过写入
 
 # ========================
 # 默认状态（全部为空）
@@ -66,6 +70,10 @@ query_graph_default_state: QueryGraphState = {
     "denied_item_names": [],
     "user_id": "",
     "roles": [],
+    "department_id": "",
+    "allowed_knowledge_ids": [],
+    "denied_knowledge_ids": [],
+    "skip_cache": False,
 }
 
 

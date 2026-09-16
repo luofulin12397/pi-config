@@ -3,17 +3,13 @@ from app.process.query.agent.state import QueryGraphState
 
 
 def access_validate(roles, item_names_roles_dict):
-    item_names=[]
-    denied_item_names=[]
-    for item in item_names_roles_dict:
-        for item_name, item_roles in item.items():
-            intersect  = list(set(roles) & set(item_roles))
-            if intersect and len(intersect) > 0:
-                item_names.append(item_name)
-            else:
-                # 没有交集
-                denied_item_names.append(item_name)
-    return item_names,denied_item_names
+    """M1-05 起主体名仅用于限定检索范围；数据权限统一由召回后 node_perm_filter 四维判定。
+
+    旧的角色交集预过滤已移除：导入时的 allowed_roles 不再决定可见性（默认拒绝 + 管理员
+    通过四维权限配置接口显式授权，见 docs/api-contract.md §3）。
+    """
+    item_names = [name for item in item_names_roles_dict for name in item.keys()]
+    return item_names, []
 
 
 
@@ -24,14 +20,7 @@ def access_control(state: QueryGraphState):
     if state.get('answer'):
         return state
 
-    roles = state.get('roles')
     item_names_roles_dict = state.get('item_names_roles_dict')
-
-    if not roles:
-        logger.error('roles为空，无法继续')
-        state['item_names'] = []
-        state['answer'] = '用户角色信息缺失，无法继续查询。'
-        return state
 
     if not item_names_roles_dict:
         logger.warning('没有关联主体，短路结束')
@@ -39,7 +28,7 @@ def access_control(state: QueryGraphState):
         state['answer'] = '没有识别到可查询的主体，请确认后再提问。'
         return state
 
-    item_names, denied_item_names = access_validate(roles, item_names_roles_dict)
+    item_names, denied_item_names = access_validate(None, item_names_roles_dict)
     state['item_names'] = item_names
     state['denied_item_names'] = denied_item_names
 

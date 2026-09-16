@@ -19,6 +19,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from app.infra.security.password_utils import hash_password
+from app.infra.security.role_utils import DEFAULT_ROLE_PERMS
 from app.shared.clients.mongo_auth_utils import get_auth_mongo_tool, utc_now
 from app.shared.runtime.logger import logger
 
@@ -47,10 +48,18 @@ def seed_roles(tool) -> dict[str, str]:
                 "code": role["code"],
                 "name": role["name"],
                 "description": role["description"],
+                **DEFAULT_ROLE_PERMS.get(role["code"], {"menus": ["chat"], "buttons": ["ask"]}),
                 "created_at": utc_now(),
             })
             role_id_map[role["code"]] = result.inserted_id
             logger.info(f"角色已创建: {role['code']}")
+        # 迁移补齐：存量角色缺 menus/buttons 时按默认配置回填
+        perms = DEFAULT_ROLE_PERMS.get(role["code"])
+        if perms:
+            tool.roles.update_one(
+                {"code": role["code"]},
+                {"$set": {"menus": perms["menus"], "buttons": perms["buttons"]}},
+            )
     return role_id_map
 
 

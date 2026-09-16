@@ -23,6 +23,8 @@ class UserInfo(BaseModel):
     username: str
     display_name: str
     roles: list[str]
+    menus: list[str] = []      # 可用菜单（多角色并集，M1-04）
+    buttons: list[str] = []    # 可用按钮（多角色并集，M1-04）
     last_login_at: Any | None = None
 
 

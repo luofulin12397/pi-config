@@ -19,6 +19,8 @@ class QueryNotStreamResponse(BaseModel):
     image_urls:list
     citations: list | None = None
     cache_hit: bool = False
+    allowed_ids: list = []   # 鉴权放行的知识单元（审计）
+    denied_ids: list = []    # 鉴权拦截的知识单元（审计）
 
 # 清空历史记录响应的结构
 class HistoryCleanResponse(BaseModel):

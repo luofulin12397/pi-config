@@ -13,7 +13,14 @@ def node_rrf(state):
     """
     add_running_task(state["session_id"], sys._getframe().f_code.co_name, state.get("is_stream"))
     maybe_node_delay()
-    state = fuse_by_rrf(state)
+    try:
+        state = fuse_by_rrf(state)
+    except ValueError:
+        # M1-05：三路检索全空（如知识单元被停用过滤后）优雅返回，不再 500
+        state["answer"] = "未在知识库中找到与您问题相关的内容，请换个问法，或联系知识管理员补充对应文档。"
+        state["skip_cache"] = True
+        add_done_task(state["session_id"], sys._getframe().f_code.co_name, state.get("is_stream"))
+        return state
     add_done_task(state['session_id'], sys._getframe().f_code.co_name, state.get("is_stream"))
     return state
 

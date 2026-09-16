@@ -17,6 +17,7 @@ from app.infra.persistence.auth_repository import auth_repository
 from app.infra.persistence.permission_repository import permission_repository
 from app.infra.security.deps import CurrentUser, get_current_user, require_admin
 from app.infra.security.jwt_utils import create_access_token, create_sse_token
+from app.infra.security.role_utils import aggregate_buttons, aggregate_menus
 from app.infra.security.password_utils import verify_password
 from app.shared.config.auth_config import auth_config
 from app.shared.runtime.logger import logger
@@ -115,10 +116,14 @@ def me(current_user: CurrentUser = Depends(get_current_user)):
     user = auth_repository.find_user_by_id(current_user.id)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户不存在")
+    info = auth_repository.user_to_dict(user)
+    # 功能权限展开：以用户实时角色聚合菜单/按钮（M1-04）
+    info["menus"] = aggregate_menus(info.get("roles", []))
+    info["buttons"] = aggregate_buttons(info.get("roles", []))
     return ApiResponse(
         code=200,
         message="ok",
-        data=UserInfo(**auth_repository.user_to_dict(user)),
+        data=UserInfo(**info),
     )
 
 
