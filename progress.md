@@ -104,3 +104,9 @@
 - pipeline_events（六步映射+emit_*）+ SSEEvent 扩展 STEP/REFS/DONE + invoke_query_graph done 事件
 - 联调修复 SSE 基础设施两个问题：流式受理先建队列消除竞态；sse_generator 等待队列而非立即断开（支持先订阅后提问）
 - 验收：test_m1_sse.py 9/9；M1 全部六票 resolved
+
+### 会话 4 续：M2-01 完成——控制台 SPA 接真实后端
+- ai_rag_knowbase-master/console/ 静态 SPA（Vue3 vendor + ES modules，无构建链），query_server 挂载 /console/（单端口 55001）
+- 登录（/auth/login + /auth/me 菜单按钮展开）+ 流式问答工作台（sse-token 订阅 → 六步步骤条 → 流式 delta → 引用/受限 → done meta）
+- 验证：JS 语法检查 + 前端数据流 E2E（六步 done 序列、234 片 delta、refs/done）
+- 用户可浏览器访问 http://<host>:55001/console/ 体验真实系统
