@@ -86,3 +86,7 @@
 3. **联调发现并修复 3 个缺陷**（ISS-001/002/003）+ 2 项一致性/韧性改造（缓存失效、主体确认回退）
 4. **验收**：test_m1_ledger.py 9/9；票 01 Mongo 集成补验通过、票 02 → resolved（后端 commit 448d02c + 5b3bcdd）
 5. 遗留：三路检索全空时 rrf 抛 ValueError 返回 500（应优雅返回"未找到"）——记入 M1-05 重构范围；停用问答依赖过滤后三路空的表现需在 M1-05 一并优雅化
+
+### 会话 4 续：M1-04 完成
+- role_utils 功能权限聚合（aggregate_menus/buttons/has_button，DB 优先）+ UserInfo 展开 + require_button 依赖工厂
+- 验证：admin 全量 / common_user 最小权限 / 角色按钮变更后重新登录实时反映，全部通过
