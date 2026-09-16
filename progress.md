@@ -95,3 +95,7 @@
 - GET/PUT /admin/knowledge/{id}/permissions（require_button('perm')）+ 台账 perms/permLabels
 - 关键设计：权限保存即清当前版本语义缓存（收回权限后缓存旧答案不得返回，防泄漏）
 - 验证：test_m1_perms.py 7/7（含 403 按钮级拒绝、清空默认拒绝）
+
+### 会话 4 续：M1-05 核心票完成（场景一端到端验收 10/10）
+- 新增 node_perm_filter（rerank 后召回过滤）+ 旧前置角色过滤移除 + 部门链路（users→CurrentUser→state）+ 响应 allowed_ids/denied_ids + rrf 空结果优雅化 + 受限答案跳过缓存
+- 验收：test_m1_scenario.py 10/10（2.9.9 场景一：张三差旅正常/薪酬受限零泄露/赵六正常/未登录 401）
