@@ -4,8 +4,13 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** claimed
+**Status:** resolved
 
-- [ ] 旧格式（仅 allowed_roles）权限记录可读取并等价映射为角色维
-- [ ] OR 判定单测覆盖：全局命中 / 部门命中 / 角色命中 / 个人命中 / 多维并存 / 全部未配置默认拒绝
-- [ ] 判定函数被权限仓储与问答链路共同复用（单一权威实现，无第二份判定逻辑）
+- [x] 旧格式（仅 allowed_roles）权限记录可读取并等价映射为角色维（normalize_perms）
+- [x] OR 判定单测覆盖：全局命中 / 部门命中 / 角色命中 / 个人命中 / 多维并存 / 全部未配置默认拒绝（scripts/test_perm_engine.py 17/17）
+- [x] 判定函数被权限仓储与问答链路共同复用（单一权威实现：app/infra/security/perm_engine.py；仓储读出即归一化）
+
+## Comments
+
+- 实施：perm_engine.py 纯函数无依赖（系统 Python 可直跑测试，无需 Mongo/uv 环境）；仓储为 expand 阶段，新方法按 knowledge_id 读写，旧方法保留
+- 交付 commit：后端仓库 2edad68；Mongo 集成验证（真实读写）留待服务联调（M1-05 前需起 Mongo）

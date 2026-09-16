@@ -75,3 +75,7 @@
 - 验证：scripts/test_perm_engine.py 17/17 通过（OR 分支/默认拒绝/旧格式映射）；Mongo 集成验证留待服务联调
 - 后端仓库 git init：9748ebd 基线 → 2edad68 M1-01（.env/doc/logs/output 已 ignore，.env 含密钥未入库）
 - 票 01 → resolved；task_plan M1 进度同步
+
+### 会话 4 续：M1-02 代码交付（待集成验证）
+- knowledge_repository + 导入图登记 + 双检索停用过滤 + admin_routes（:55001 require_admin）；后端 commit 448d02c
+- 已验证：py_compile 9 文件、perm_engine 回归 17/17；接口集成验证需 Mongo+Milvus+LLM 环境（阻塞点：.env API key 失效需用户提供）
