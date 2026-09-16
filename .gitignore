@@ -1,0 +1,8 @@
+# 独立源码包：内部自带 AGENTS.md 工作流，将来独立管理
+ai_rag_knowbase-master/
+
+# 通用
+node_modules/
+__pycache__/
+*.log
+.DS_Store
