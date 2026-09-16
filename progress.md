@@ -69,3 +69,9 @@
 ### 阶段 4 启动：M1 拆票
 - `to-tickets` 拆为 6 张垂直切片票，发布至 `.scratch/m1-perm-engine/issues/`（01 权限模型 / 02 台账 / 03 权限配置 / 04 auth-me / 05 管线过滤★ / 06 SSE 事件流），全部 Status: ready-for-agent
 - Frontier：01、02、04、06 可立即并行开工；05 blocked by 01+03
+
+### 会话 4 续：M1-01 工单实施完成
+- 认领并完成 `.scratch/m1-perm-engine/issues/01-perm-model.md`：新增 perm_engine 判定引擎（纯函数）+ permission_repository expand（按 knowledge_id 四维读写，旧格式兼容）
+- 验证：scripts/test_perm_engine.py 17/17 通过（OR 分支/默认拒绝/旧格式映射）；Mongo 集成验证留待服务联调
+- 后端仓库 git init：9748ebd 基线 → 2edad68 M1-01（.env/doc/logs/output 已 ignore，.env 含密钥未入库）
+- 票 01 → resolved；task_plan M1 进度同步

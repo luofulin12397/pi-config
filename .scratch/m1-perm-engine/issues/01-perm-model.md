@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] 旧格式（仅 allowed_roles）权限记录可读取并等价映射为角色维
 - [ ] OR 判定单测覆盖：全局命中 / 部门命中 / 角色命中 / 个人命中 / 多维并存 / 全部未配置默认拒绝
