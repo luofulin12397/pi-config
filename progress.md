@@ -110,3 +110,8 @@
 - 登录（/auth/login + /auth/me 菜单按钮展开）+ 流式问答工作台（sse-token 订阅 → 六步步骤条 → 流式 delta → 引用/受限 → done meta）
 - 验证：JS 语法检查 + 前端数据流 E2E（六步 done 序列、234 片 delta、refs/done）
 - 用户可浏览器访问 http://<host>:55001/console/ 体验真实系统
+
+### 会话 4 续：M2-02 完成——知识维护与导入中心
+- 后端：chunks 预览接口、departments/users 数据源、导入代理（单端口）
+- 前端：知识中心视图（台账/导入/编辑/删除/启停/切片预览/四维权限弹窗，menus/buttons 驱动显隐）
+- 回归：SSE 9/9、权限 6/6
