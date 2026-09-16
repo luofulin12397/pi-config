@@ -5,14 +5,18 @@ RBAC：全部挂 require_admin（M1-04 完成菜单/按钮级展开后再细化�
 """
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app.api.schema.auth_schema import ApiResponse
 from app.infra.persistence.knowledge_repository import knowledge_repository
 from app.infra.persistence.permission_repository import permission_repository
 from app.infra.security.perm_engine import has_access, normalize_perms
+from app.infra.persistence.auth_repository import auth_repository
+from app.infra.persistence.knowledge_repository import knowledge_repository
 from app.infra.persistence.qa_cache_repository import qa_cache_repository
+from app.shared.clients.mongo_auth_utils import get_auth_mongo_tool
 from app.infra.security.deps import CurrentUser, require_admin, require_button
 from app.rag.import_.index_service import remove_old_chunks
 
@@ -155,3 +159,93 @@ def set_permissions(
         "id": knowledge_id, "perms": perms, "labels": _perm_labels(perms),
         "cacheInvalidated": removed,
     })
+
+
+# ==================== 切片预览与权限弹窗数据源（M2-02） ====================
+
+@admin_router.get("/knowledge/{knowledge_id}/chunks")
+def list_chunks(
+    knowledge_id: str,
+    _: CurrentUser = Depends(require_button("perm")),
+):
+    """切片预览：按知识单元的 file_title 查询 Milvus kb_chunks。"""
+    from app.infra.config.providers import infra_config
+    from app.shared.clients.milvus_utils import get_milvus_client
+
+    unit = knowledge_repository.get(knowledge_id)
+    if not unit:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="知识单元不存在")
+    file_title = unit.get("file_title", "")
+    rows = get_milvus_client().query(
+        collection_name=infra_config.milvus.chunks_collection,
+        filter=f'file_title == "{file_title}"',
+        output_fields=["chunk_id", "title", "content", "part", "start_line", "end_line"],
+    )
+    chunks = [{
+        "id": str(r.get("chunk_id", "")),
+        "title": r.get("title", ""),
+        "text": r.get("content", ""),
+        "part": r.get("part"),
+        "lines": f"L{r.get('start_line')}-L{r.get('end_line')}" if r.get("start_line") is not None else "",
+    } for r in rows]
+    return ApiResponse(data=chunks)
+
+
+@admin_router.get("/departments")
+def list_departments(_: CurrentUser = Depends(require_button("perm"))):
+    """部门列表（聚合自用户档案的 department_id；组织树模型在后续迭代落地）。"""
+    users = _users_overview()
+    depts = sorted({u.get("department_id") for u in users if u.get("department_id")})
+    return ApiResponse(data=[{"id": d, "name": d} for d in depts])
+
+
+@admin_router.get("/users")
+def list_console_users(_: CurrentUser = Depends(require_button("perm"))):
+    """用户轻量列表（权限弹窗的个人维选择数据源）。"""
+    users = _users_overview()
+    return ApiResponse(data=[{
+        "id": u["id"], "name": u["name"], "username": u["username"], "departmentId": u["department_id"],
+    } for u in users])
+
+
+def _users_overview() -> list[dict]:
+    """内部工具：聚合用户档案（id/name/username/department_id）。"""
+    return [{
+        "id": str(u["_id"]),
+        "name": u.get("display_name") or u.get("username", ""),
+        "username": u.get("username", ""),
+        "department_id": u.get("department_id", ""),
+    } for u in get_auth_mongo_tool().users.find(
+        {}, {"_id": 1, "username": 1, "display_name": 1, "department_id": 1}
+    )]
+
+
+# ==================== 导入代理（前端单端口：:55001 → :55000，M2-02） ====================
+_IMPORT_BASE = "http://127.0.0.1:55000"
+
+
+@admin_router.post("/import/upload")
+def proxy_import_upload(
+    request: Request,
+    files: list[UploadFile] = File(...),
+    allowed_roles: str = Form(default='["common_user"]'),
+    _: CurrentUser = Depends(require_button("import")),
+):
+    """代理导入服务的上传接口（透传 multipart 与鉴权头）。"""
+    import httpx
+
+    auth = request.headers.get("authorization", "")
+    fs = [("files", (f.filename, f.file, f.content_type or "application/octet-stream")) for f in files]
+    r = httpx.post(f"{_IMPORT_BASE}/upload", files=fs, data={"allowed_roles": allowed_roles},
+                   headers={"Authorization": auth}, timeout=300)
+    return JSONResponse(status_code=r.status_code, content=r.json())
+
+
+@admin_router.get("/import/status/{task_id}")
+def proxy_import_status(task_id: str, request: Request, _: CurrentUser = Depends(require_button("import"))):
+    """代理导入任务状态查询（done_list/running_list 驱动前端进度展示）。"""
+    import httpx
+
+    auth = request.headers.get("authorization", "")
+    r = httpx.get(f"{_IMPORT_BASE}/status/{task_id}", headers={"Authorization": auth}, timeout=30)
+    return JSONResponse(status_code=r.status_code, content=r.json())
