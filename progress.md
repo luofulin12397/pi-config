@@ -90,3 +90,8 @@
 ### 会话 4 续：M1-04 完成
 - role_utils 功能权限聚合（aggregate_menus/buttons/has_button，DB 优先）+ UserInfo 展开 + require_button 依赖工厂
 - 验证：admin 全量 / common_user 最小权限 / 角色按钮变更后重新登录实时反映，全部通过
+
+### 会话 4 续：M1-03 完成
+- GET/PUT /admin/knowledge/{id}/permissions（require_button('perm')）+ 台账 perms/permLabels
+- 关键设计：权限保存即清当前版本语义缓存（收回权限后缓存旧答案不得返回，防泄漏）
+- 验证：test_m1_perms.py 7/7（含 403 按钮级拒绝、清空默认拒绝）
