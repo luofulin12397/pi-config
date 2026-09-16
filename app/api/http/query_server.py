@@ -5,7 +5,8 @@ import time
 import uuid
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Query, Request
-from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 
 from app.api.http.auth_routes import auth_router
@@ -48,6 +49,14 @@ app.add_middleware(
 )
 
 app.include_router(auth_router, prefix="/auth")
+
+# M2-01：控制台前端（单端口部署，无 CORS）
+_CONSOLE_DIR = Path(__file__).resolve().parents[3] / "console"
+if _CONSOLE_DIR.exists():
+    app.mount("/console", StaticFiles(directory=str(_CONSOLE_DIR), html=True), name="console")
+    @app.get("/console")
+    def _console_redirect():
+        return RedirectResponse("/console/")
 from app.api.http.admin_routes import admin_router  # noqa: E402  (M1-02 知识单元台账)
 app.include_router(admin_router)
 
