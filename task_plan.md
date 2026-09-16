@@ -9,11 +9,11 @@
 
 ## 下一步
 
-产出 API 契约清单（页面/动作 → HTTP 接口 → demo 服务函数 → 现有代码库落点），写入 findings.md。
+阶段 4 启动：M1 四维权限引擎拆票（to-tickets → .scratch/m1-perm-engine/）或直接开工。
 
 ## 当前阶段
 
-阶段 3：API 契约清单
+阶段 4：迭代实施计划（M1 先行）
 
 ## 各阶段
 
@@ -30,10 +30,11 @@
 - **状态：** complete
 
 ### 阶段 3：API 契约清单
-- [ ] 页面/交互动作 → HTTP 接口定义（方法/路径/入参/出参）
-- [ ] 接口 ↔ demo 服务函数 ↔ 现有代码库模块（新增 or 改造）三方映射
-- [ ] 标注复用项（auth/jwt、import 管线、query 管线）与新增项（perm 四维、faq、gap、dashboard、audit）
-- **状态：** pending
+- [x] 页面/交互动作 → HTTP 接口定义（方法/路径/入参/出参）
+- [x] 接口 ↔ demo 服务函数 ↔ 现有代码库模块（新增 or 改造）三方映射
+- [x] 标注复用项与新增项
+- **产出：** `docs/api-contract.md`（46 接口，§8 里程碑映射）；摘要入 findings.md §7
+- **状态：** complete
 
 ### 阶段 4：迭代实施计划（接入 ai_rag_knowbase-master）
 - [ ] M1：四维权限引擎改造（document_permissions 模型扩展 + 检索后过滤节点 + 拦截文案）

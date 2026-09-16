@@ -64,3 +64,14 @@
 - `node --check`：mock-data.js / services.js / app.js 语法通过
 - 核心逻辑冒烟 10 项断言全部通过（四维判定 6 分支、检索命中、无权拦截、缺口入池→转任务→再检索闭环、FAQ 发布后缓存直出、看板聚合）
 - 未验证：无无头浏览器，未做真实渲染冒烟（风险低：纯静态资源 + 常规 Vue3 用法）
+
+## 7. API 契约清单（阶段 3 产出摘要）
+
+完整契约：`docs/api-contract.md`（46 个接口，页面动作 → 接口 → demo 函数 → 代码库落点三方映射）。
+
+关键结论：
+- **复用面比预想大**：现有 `/auth/me`、`/suggestions`、SSE `/stream/{session_id}`、`/upload`、`/status/{task_id}` 都可复用，约 40% 接口为纯复用或小改造
+- **服务拓扑**：管理类接口挂 :55001 新增 admin_routes.py，不引入第三服务
+- **SSE step 事件协议**为最大新增机制：demo 管线步骤条线上化（step/delta/refs/done 四类事件），需给 LangGraph 节点加回调
+- **核心改造点只有一处**：node_access_control 从"商品主体名预过滤"改为"召回后四维过滤"（契约 §4）
+- 新增集合 6 个：departments / knowledge_units / faqs(+candidates) / gaps / qa_logs / settings

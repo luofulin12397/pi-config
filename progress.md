@@ -53,3 +53,15 @@
 
 ### 变更文件
 - `AGENTS.md`、`docs/agents/{issue-tracker,triage-labels,domain}.md`、`.gitignore`（commit f209aeb）
+
+## 会话 4 · 2026-09-16
+
+### 完成内容：阶段 3 — API 契约清单
+1. 盘点现有接口（auth_routes 7 个 / import_server 4 个 / query_server 6 个）与全部 persistence 仓储、查询图 11 节点
+2. 产出 `docs/api-contract.md`：46 个接口 × 五列映射（页面动作 → 接口 → 出入参 → demo 函数 → 落点[复用/改造/新增]），含 SSE step 事件协议、新增数据模型 6 集合、M1-M4 里程碑映射
+3. 关键发现：约 40% 接口可纯复用；核心改造点收敛为一处（node_access_control 召回后四维过滤）；管理 API 挂 :55001 不加第三服务
+4. task_plan 阶段 3 → complete；findings §7 摘要
+5. 验证：落点均核对过实际文件名与现有路由（grep 确认）；未验证项：接口行为未实际运行（属 M1+ 实施内容）
+
+### 变更文件
+- 新增 `docs/api-contract.md`；更新 task_plan.md / findings.md / progress.md
