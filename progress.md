@@ -42,3 +42,14 @@
 ### 产出/变更文件
 - `/root/pi-config/`（commit 59bbe05：+450 文件 / -49 死链 / AGENTS.md）
 - `/root/.pi/agent/skills/`（46 个软链重定向 + 3 个死链移除）
+
+## 会话 3 · 2026-09-16
+
+### 完成内容：运行 setup-matt-pocock-skills，为项目仓库配置工程技能
+1. 项目根 `git init`（main 分支），首次提交 f209aeb（含需求文档 / frontend-demo / planning 三件套；`.gitignore` 排除 ai_rag_knowbase-master）
+2. 写入 `AGENTS.md`（项目约定 + `## Agent skills` 块）
+3. 写入 `docs/agents/`：issue-tracker（本地 markdown，`.scratch/<feature>/`）、triage-labels（默认 5 标签）、domain（单上下文，CONTEXT.md/ADR 惰性创建）
+4. 生效范围：to-tickets/to-spec/triage 读写 `.scratch/`；grill-with-docs/domain-modeling 按 domain.md 约定消费领域文档
+
+### 变更文件
+- `AGENTS.md`、`docs/agents/{issue-tracker,triage-labels,domain}.md`、`.gitignore`（commit f209aeb）
