@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from app.shared.clients.mongo_qa_cache_utils import (
+    delete_cache_by_version,
     increment_hit_count,
     insert_cache_entry,
     list_cache_by_version,
@@ -30,6 +31,15 @@ class QaCacheRepository:
         """
         version = knowledge_version or cache_config.knowledge_version
         return list_cache_by_version(version)
+
+    def delete_by_version(self, knowledge_version: str | None = None) -> int:
+        """
+        清空指定知识库版本的全部语义缓存（M1-02：知识单元停用/删除时调用，
+        使缓存中的旧答案立即失效，避免停用/删除后仍返回缓存内容）
+        :return: 删除的缓存条数
+        """
+        version = knowledge_version or cache_config.knowledge_version
+        return delete_cache_by_version(version)
 
     def save(
         self,

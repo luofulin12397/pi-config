@@ -300,12 +300,20 @@ def confirm_item_name(state: QueryGraphState) -> QueryGraphState:
     # 参数 history_text和original_query  响应: 字典 {item_names:[],rewritten_query:''}
     result_dict = call_llm_deal_data(history_text,original_query)
 
+    # 4.5 提取结果清洗 + 回退（ISS-003）：LLM 偶发提取为空/带引号，此时用原问题作为候选
+    # 去向量匹配（由 select_item_names 的相似度阈值兜底），避免偶发失败导致整条链路中断
+    item_names_raw = [
+        str(x).strip().strip('"').strip("'").strip()
+        for x in (result_dict.get('item_names') or [])
+    ]
+    item_names_for_search = [x for x in item_names_raw if x] or [original_query]
+
     item_name_dict = {}
     # 5. 进行校验,如果没有item_names无需调用向量查询
-    if len(result_dict['item_names']) > 0:
+    if len(item_names_for_search) > 0:
         # 6.进行item_names内部识别到模型名称的向量化查询
         # 参数 item_names 即可! 响应: {item_name(这个是模型查询到的):[ 存储从milvus中匹配 {item_name: 名字 , score: 分数} .. 应该是5个]}
-        milvus_result_dict:dict[str,list[dict]] = query_item_name_milvus(result_dict['item_names'])
+        milvus_result_dict:dict[str,list[dict]] = query_item_name_milvus(item_names_for_search)
         # 7. 获取确认和可选地列表  dict{确认:[0.7 + ] 可选:[ 0.6 - 0.7 ]}
         item_name_dict = select_item_names(milvus_result_dict)
 

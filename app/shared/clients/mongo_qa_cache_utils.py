@@ -40,6 +40,12 @@ def _get_qa_cache_collection():
     return collection
 
 
+def delete_cache_by_version(knowledge_version: str) -> int:
+    """删除指定知识库版本的全部缓存记录（知识单元停用/删除时调用），返回删除条数"""
+    result = _get_qa_cache_collection().delete_many({"knowledge_version": knowledge_version})
+    return result.deleted_count
+
+
 def list_cache_by_version(knowledge_version: str) -> list[dict[str, Any]]:
     """
     查询指定知识库版本下的全部缓存记录

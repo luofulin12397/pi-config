@@ -1,121 +1,87 @@
+# -*- coding: utf-8 -*-
 """
-工具模块，负责提供 embedding 相关的辅助能力。
+Embedding 服务（M1 联调 API 化）。
+
+历史实现为本地 BGEM3EmbeddingFunction（torch + 模型权重，约 2GB 下载）；现改为：
+- dense：硅基流动 OpenAI 兼容 /v1/embeddings 端点（BAAI/bge-m3，1024 维）
+- sparse：本地确定性字符 n-gram 词频哈希（纯标准库），形状与原 BGE-M3 sparse 兼容
+  （{维度索引: 权重}）。近似实现仅用于联调/演示，混合检索精度由 rerank API 精排兜底。
+
+输出形状与原实现一致：{'dense': [[...], ...], 'sparse': [{idx: weight}, ...]}
 """
-from pymilvus.model.hybrid import BGEM3EmbeddingFunction
+from __future__ import annotations
+
+import hashlib
+import math
+
+import httpx
 
 from app.shared.config.embedding_config import embedding_config
 from app.shared.runtime.logger import logger
 
-_DEFAULT_EMBEDDING_MODEL = "BAAI/bge-m3"
-_DEFAULT_EMBEDDING_DEVICE = "cpu"
-_bge_m3_ef: BGEM3EmbeddingFunction | None = None
+_SPARSE_DIM = 30000  # 稀疏哈希空间上界（文档/查询共用同一映射保证一致性）
+_client = httpx.Client(timeout=30)
 
 
-def get_bge_m3_ef() -> BGEM3EmbeddingFunction:
+def get_bge_m3_ef():
+    """废弃：API 化后不再有本地 BGEM3EmbeddingFunction 实例。保留符号兼容旧 import，勿在新代码中使用。"""
+    logger.warning("get_bge_m3_ef 已废弃（embedding 已 API 化），返回 None")
+    return None
+
+
+def _sparse_vector(text: str) -> dict[int, float]:
+    """确定性字符 n-gram 词频哈希稀疏向量（单字 + 二元组，子线性权重）。"""
+    tokens = "".join(str(text).lower().split())
+    tf: dict[int, float] = {}
+    for i, ch in enumerate(tokens):
+        idx = int.from_bytes(hashlib.md5(ch.encode("utf-8")).digest()[:4], "big") % _SPARSE_DIM
+        tf[idx] = tf.get(idx, 0.0) + 1.0
+        if i + 1 < len(tokens):
+            bigram = tokens[i : i + 2]
+            idx = int.from_bytes(hashlib.md5(bigram.encode("utf-8")).digest()[:4], "big") % _SPARSE_DIM
+            tf[idx] = tf.get(idx, 0.0) + 1.0
+    return {idx: round(1.0 + math.log(cnt), 6) for idx, cnt in tf.items()}
+
+
+def _dense_via_api(texts: list[str]) -> list[list[float]]:
+    """调用 OpenAI 兼容 embeddings 端点，按输入顺序返回向量列表。
+
+    免费端点高峰期偶发 503/429，做 3 次指数退避重试（ISS-003）。
     """
-    获取BGE-M3模型单例对象，自动加载环境变量配置
-    :return: 初始化完成的BGEM3EmbeddingFunction实例
-    """
-    global _bge_m3_ef
-    # 单例模式：已初始化则直接返回，避免重复加载模型
-    if _bge_m3_ef is not None:
-        logger.debug("BGE-M3模型单例已存在，直接返回实例")
-        return _bge_m3_ef
+    import time
 
-    # 从环境变量加载配置，无配置则使用默认值
-    # 本地有可以使用本地地址！ 没有使用 "BAAI/bge-m3" 会自动下载！ 如果云端部署也可以使用url地址！
-    model_name = embedding_config.bge_m3_path or embedding_config.bge_m3 or _DEFAULT_EMBEDDING_MODEL
-    device = embedding_config.bge_device or _DEFAULT_EMBEDDING_DEVICE
-    use_fp16 = embedding_config.bge_fp16
-
-    # 打印模型初始化配置，便于问题排查
-    logger.info(
-        "开始初始化BGE-M3模型",
-        extra={
-            "model_name": model_name,
-            "device": device,
-            "use_fp16": use_fp16,
-            "normalize_embeddings": True
-        }
-    )
-
-    try:
-        # 初始化 BGE-M3 模型，开启原生 L2 归一化（适配 Milvus IP 内积检索）
-        _bge_m3_ef = BGEM3EmbeddingFunction(
-            model_name=model_name,
-            device=device,
-            use_fp16=use_fp16,
-            normalize_embeddings=True  # 模型原生对稠密+稀疏向量做L2归一化
-        )
-        logger.success("BGE-M3模型初始化成功，已开启原生L2归一化")
-        return _bge_m3_ef
-    except Exception as e:
-        logger.error(f"BGE-M3模型初始化失败：{str(e)}", exc_info=True)
-        raise  # 向上抛出异常，由调用方处理
+    last_err: Exception | None = None
+    for attempt in range(5):
+        try:
+            resp = _client.post(
+                f"{embedding_config.api_base}/embeddings",
+                headers={"Authorization": f"Bearer {embedding_config.api_key}"},
+                json={"model": embedding_config.api_model, "input": texts},
+            )
+            resp.raise_for_status()
+            data = resp.json()["data"]
+            data.sort(key=lambda item: item["index"])
+            return [item["embedding"] for item in data]
+        except (httpx.HTTPStatusError, httpx.TransportError) as exc:
+            last_err = exc
+            status = getattr(getattr(exc, "response", None), "status_code", 0)
+            if status and status not in (429, 500, 502, 503, 504):
+                raise
+            wait = 1.0 * (2**attempt)
+            logger.warning(f"embeddings 端点瞬时失败({status or type(exc).__name__})，{wait:.0f}s 后重试({attempt + 1}/5)")
+            time.sleep(wait)
+    raise last_err  # type: ignore[misc]
 
 
 def generate_embeddings(texts: list[str]) -> dict[str, list]:
     """
-    为文本列表生成稠密+稀疏混合向量嵌入（模型原生L2归一化）
-    :param texts: 要生成嵌入的文本列表，单文本也需封装为列表
-    :return: 字典格式的向量结果，key为dense/sparse，对应嵌套列表/字典列表
-    :raise: 向量生成过程中的异常，由调用方捕获处理
+    生成稠密 + 稀疏向量。
+    :param texts: 文本列表
+    :return: {'dense': [[...]], 'sparse': [{维度: 权重}, ...]}
     """
-    # 入参合法性校验
-    if not isinstance(texts, list) or len(texts) == 0:
-        logger.warning("生成向量入参不合法，texts必须为非空列表")
-        raise ValueError("参数texts必须是包含文本的非空列表")
-    if any(not isinstance(text, str) for text in texts):
-        logger.warning("生成向量入参不合法，texts中存在非字符串内容")
-        raise ValueError("参数texts必须是字符串列表")
-
-    logger.info(f"开始为{len(texts)}条文本生成混合向量嵌入")
-    try:
-        # 加载BGE-M3模型单例
-        model = get_bge_m3_ef()
-        # 模型编码生成向量，返回dense（稠密向量）+sparse（CSR格式稀疏向量）
-        embeddings = model.encode_documents(texts)
-        logger.debug(f"模型编码完成，开始解析稀疏向量格式，共{len(texts)}条")
-
-        # 初始化稀疏向量处理结果，解析为字典格式（适配序列化/存储）
-        processed_sparse = []
-        # # 把模型输出的 CSR 稀疏矩阵 ，按“每条文本一行”拆成 {特征索引: 权重} 字典
-        # # - indices ：非零元素的“列号（特征ID）”
-        # # - data ：对应列号的权重值
-        # # - indptr ：每一行在 indices/data 里的起止位置指针
-        # # 数据示例:
-        # # indices = [3, 8, 20, 1, 9]
-        # # data    = [0.7, 0.2, 0.1, 0.6, 0.4]  -> milvus -> 稠密向量 [1024] 稀疏向量 : {index:值,index:值}
-        # # indptr  = [0, 3, 5]
-        # # 获取对应的数据
-        # # - 第0条文本用 0:3 => indices=[3, 8, 20] , data=[0.7,0.2,0.1]
-        # # - 第1条文本用 3:5 => indices=[1,9] , data=[0.6,0.4]
-        for i in range(len(texts)):
-            # 提取第i个文本的稀疏向量索引：np.int64 → Python int（满足字典key可哈希要求）
-            sparse_indices = embeddings["sparse"].indices[
-                embeddings["sparse"].indptr[i]:embeddings["sparse"].indptr[i + 1]
-            ].tolist()
-            # 提取第i个文本的稀疏向量权重：np.float32 → Python float（适配JSON序列化/接口返回）
-            sparse_data = embeddings["sparse"].data[
-                embeddings["sparse"].indptr[i]:embeddings["sparse"].indptr[i + 1]
-            ].tolist()
-            # 构造{特征索引: 归一化权重}的稀疏向量字典
-            sparse_dict = {k: v for k, v in zip(sparse_indices, sparse_data)}
-            # mivlus 稠密向量 []  稀疏向量  [ {key->有值的坐标: 坐标对应的值}  , {key->有值的坐标: 坐标对应的值}]
-            processed_sparse.append(sparse_dict)
-
-        # 构造最终返回结果，稠密向量转列表（解决numpy数组不可序列化问题）
-        result = {
-            # embeddings["dense"] = [[1稠密向量],[2稠密向量],[...]  -> 1024]
-            # embeddings["sparse"] = [[1稀疏向量],[2稠密向量],[...]  -> 1024]
-            "dense": [emb.tolist() for emb in embeddings["dense"]],  # 嵌套列表，与输入文本一一对应
-            "sparse": processed_sparse  # 字典列表，模型已做L2归一化
-        }
-        logger.success(f"{len(texts)}条文本向量生成完成，格式已适配工业级使用")
-        return result
-
-    except Exception as e:
-        logger.error(f"文本向量生成失败：{str(e)}", exc_info=True)
-        raise  # 不吞异常，向上传递让调用方做重试/降级处理
-
-
+    if not texts:
+        return {"dense": [], "sparse": []}
+    dense = _dense_via_api(texts)
+    sparse = [_sparse_vector(t) for t in texts]
+    logger.debug(f"embedding 完成：{len(texts)} 条（API dense {len(dense[0])} 维 + 本地 sparse）")
+    return {"dense": dense, "sparse": sparse}

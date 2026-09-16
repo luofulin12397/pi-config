@@ -276,8 +276,8 @@ def enrich_markdown_images(state: ImportGraphState) -> ImportGraphState:
     """
     # 1. 获取操作参数 md_content md_path_obj  images_path_obj
     md_content,md_path_obj,image_path_obj = load_markdown_and_image_dir(state)
-    # 2. 判断image_path_obj是否存在内容,没有,直接结束进行下一节点 (没有图片也一定有images)
-    if not any(image_path_obj.iterdir()):
+    # 2. 判断image_path_obj是否存在内容,没有,直接结束进行下一节点（直接上传的无图 MD 不含 images 目录，ISS-001）
+    if not image_path_obj.exists() or not any(image_path_obj.iterdir()):
         # 空文件夹
         logger.warning(f"当前{md_content}没有图片,无需图片处理!正常进入下一个节点!!")
         return state

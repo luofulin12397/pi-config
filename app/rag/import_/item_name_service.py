@@ -91,8 +91,8 @@ def recognize_item_name(context: str, file_title: str) -> str:
     ]
     # 4. 组装调用链
     chains = chat_model | StrOutputParser()
-    # 5. 执行调用链获取item_name
-    item_name = chains.invoke(messages)
+    # 5. 执行调用链获取item_name（ISS-002：LLM 可能返回带引号/空白的结果，需剥离；剥后为空回退 file_title）
+    item_name = (chains.invoke(messages) or "").strip().strip('"').strip("'").strip()
     logger.info(f"调用模型进行item_name识别完毕! item_name:{item_name}")
     # 6. 进行非空判断和兜底赋值
     if not item_name:

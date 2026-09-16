@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from app.api.schema.auth_schema import ApiResponse
 from app.infra.persistence.knowledge_repository import knowledge_repository
+from app.infra.persistence.qa_cache_repository import qa_cache_repository
 from app.infra.security.deps import CurrentUser, require_admin
 from app.rag.import_.index_service import remove_old_chunks
 
@@ -61,6 +62,11 @@ def update_knowledge(
     if not patch:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="无可更新字段")
     knowledge_repository.update(knowledge_id, patch)
+    # 停用会使已缓存答案失效：清当前版本语义缓存（ISS：缓存与知识变更一致性）
+    if patch.get("enabled") is False:
+        removed = qa_cache_repository.delete_by_version()
+        if removed:
+            print(f"[admin] 知识单元停用，已清空语义缓存 {removed} 条")
     return ApiResponse(data=_to_dto(knowledge_repository.get(knowledge_id)))
 
 
@@ -72,8 +78,11 @@ def delete_knowledge(
     unit = knowledge_repository.get(knowledge_id)
     if not unit:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="知识单元不存在")
-    # 先删台账，再清向量（向量清理失败时台账已删，检索仍会因台账缺失而失败关闭，重删可幂等清理）
+    # 先删台账，再清向量与语义缓存（缓存中的旧答案必须随知识删除失效）
     knowledge_repository.delete(knowledge_id)
+    removed = qa_cache_repository.delete_by_version()
+    if removed:
+        print(f"[admin] 知识单元删除，已清空语义缓存 {removed} 条")
     file_title = unit.get("file_title", "")
     if file_title:
         remove_old_chunks(file_title)

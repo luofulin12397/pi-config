@@ -12,6 +12,10 @@ class EmbeddingConfig:
     bge_m3: str
     bge_device: str
     bge_fp16: bool
+    # API 化（M1 联调）：dense 走 OpenAI 兼容 /embeddings 端点（硅基流动 bge-m3）
+    api_base: str = ""
+    api_key: str = ""
+    api_model: str = "BAAI/bge-m3"
 
 embedding_config = EmbeddingConfig(
     bge_m3_path=env_str("BGE_M3_PATH"),
@@ -19,4 +23,7 @@ embedding_config = EmbeddingConfig(
     bge_m3=env_str("BGE_M3"),
     bge_device=env_str("BGE_DEVICE"),
     bge_fp16=env_bool("BGE_FP16"),
+    api_base=env_str("EMBEDDING_API_BASE", ""),
+    api_key=env_str("EMBEDDING_API_KEY", ""),
+    api_model=env_str("EMBEDDING_MODEL", "BAAI/bge-m3"),
 )

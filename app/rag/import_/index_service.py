@@ -1,3 +1,4 @@
+from pathlib import Path
 import datetime
 
 from pymilvus import DataType
@@ -163,6 +164,7 @@ def index_chunks(state: ImportGraphState) -> ImportGraphState:
             task_id=state.get("task_id", ""),
             created_by=state.get("imported_by", ""),
             chunks_count=len(chunks),
+            format_ext=Path(state.get("local_file_path", "")).suffix.lstrip("."),
         )
     except Exception:
         logger.exception("知识单元台账登记失败（向量已入库）")

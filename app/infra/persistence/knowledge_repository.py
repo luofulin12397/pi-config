@@ -38,10 +38,11 @@ class KnowledgeRepository:
         task_id: str = "",
         created_by: str = "",
         chunks_count: int = 0,
+        format_ext: str = "",
     ) -> str:
         """导入成功后登记知识单元（按 file_title 幂等 upsert），返回 knowledge_id。"""
         kid = knowledge_id_of(file_title)
-        ext = file_title.rsplit(".", 1)[-1].lower() if "." in file_title else "txt"
+        ext = (format_ext or (file_title.rsplit(".", 1)[-1] if "." in file_title else "")).lower() or "txt"
         title = file_title.rsplit(".", 1)[0] if "." in file_title else file_title
         tool = get_auth_mongo_tool()
         tool.knowledge_units.update_one(
