@@ -13,6 +13,9 @@ class SSEEvent:
     READY = "ready"
     PROGRESS = "progress"
     DELTA = "delta"
+    STEP = "step"   # M1-06：管线步骤（契约 §0）
+    REFS = "refs"    # M1-06：引用溯源 + 拦截数
+    DONE = "done"    # M1-06：来源/耗时/token
     FINAL = "final"
     ERROR = "error"
     CLOSE = "__close__"
@@ -84,11 +87,17 @@ async def sse_generator(session_id: str, request: Request):
     use_redis = _redis() is not None
     stream_queue = None if use_redis else _session_stream.get(session_id)
 
-    if not use_redis and stream_queue is None:
-        return
-
     try:
         yield _sse_pack("ready", {})
+        # M1-06：前端通常先订阅后提问——等待队列创建（最长 10s）而非立即断开
+        if not use_redis:
+            waited = 0.0
+            while stream_queue is None and waited < 10.0:
+                await asyncio.sleep(0.2)
+                waited += 0.2
+                stream_queue = _session_stream.get(session_id)
+            if stream_queue is None:
+                return
         while True:
             if await request.is_disconnected():
                 break

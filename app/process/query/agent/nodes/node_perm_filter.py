@@ -15,6 +15,7 @@ import sys
 from app.infra.persistence.knowledge_repository import knowledge_id_of
 from app.infra.persistence.permission_repository import permission_repository
 from app.infra.security.perm_engine import has_access
+from app.shared.utils.pipeline_events import emit_skipped, emit_step
 from app.shared.runtime.logger import node_log
 from app.shared.utils.task_utils import add_done_task, add_running_task
 
@@ -58,10 +59,14 @@ def node_perm_filter(state):
     state["allowed_knowledge_ids"] = sorted({knowledge_id_of(d.get("file_title", "")) for d in allowed_docs})
     state["denied_knowledge_ids"] = sorted({knowledge_id_of(d.get("file_title", "")) for d in denied_docs})
 
+    emit_step(state["session_id"], "auth", "done",
+              f"四维鉴权完成：放行 {len(allowed_docs)} 个切片，拦截 {len(denied_docs)} 个", state["is_stream"])
+
     if denied_docs and not allowed_docs:
         # 全部命中内容均无权限：短路返回受限提示，不调用 LLM、不写缓存
         state["answer"] = PERMISSION_DENIED_ANSWER
         state["skip_cache"] = True
+        emit_skipped(state["session_id"], ["compose", "generate"], state["is_stream"])
 
     add_done_task(state["session_id"], sys._getframe().co_name if False else sys._getframe().f_code.co_name, state.get("is_stream"))
     return state

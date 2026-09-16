@@ -15,6 +15,7 @@ import sys
 from app.rag.query.history_compress_service import compress_history
 from app.shared.runtime.logger import node_log
 from app.shared.utils.node_delay_utils import maybe_node_delay
+from app.shared.utils.pipeline_events import emit_step
 from app.shared.utils.task_utils import add_done_task, add_running_task
 
 
@@ -41,6 +42,7 @@ def node_history_compress(state):
     #   2.5 compress_skipped=True 表示本次未调 LLM；False 表示本次做了增量压缩
     maybe_node_delay()
     state = compress_history(state)
+    emit_step(state["session_id"], "context", "done", "多轮历史已压缩为摘要上下文", state["is_stream"])
 
     # 步骤3：登记节点完成，供前端展示节点流转进度
     add_done_task(state["session_id"], sys._getframe().f_code.co_name, state["is_stream"])

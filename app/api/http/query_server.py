@@ -1,6 +1,7 @@
 from mimetypes import guess_type
 from pathlib import Path
 import sys
+import time
 import uuid
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Query, Request
@@ -17,7 +18,8 @@ from app.infra.config.providers import settings
 from app.infra.security.auth_startup import validate_jwt_secret_on_startup
 from app.process.query.agent.main_graph import query_graph_app
 from app.process.query.agent.state import create_query_default_state,QueryGraphState
-from app.shared.utils.sse_utils import SSEEvent, create_sse_queue, push_to_session, sse_generator
+from app.shared.utils.pipeline_events import emit_refs, emit_skipped, emit_step
+from app.shared.utils.sse_utils import SSEEvent, create_sse_queue, get_sse_queue, push_to_session, sse_generator
 from app.shared.utils.task_utils import (
     TASK_STATUS_COMPLETED,
     TASK_STATUS_FAILED,
@@ -128,15 +130,33 @@ def invoke_query_graph(session_id:str,query:str,is_stream:bool=False,user_id:str
     # 清空task_utils的数据
     clear_task(session_id)
 
-    if is_stream:
+    if is_stream and get_sse_queue(session_id) is None:
         create_sse_queue(session_id)
 
+    started_at = time.time()
     try:
         update_task_status(session_id,TASK_STATUS_PROCESSING,is_stream)
         logger.info(f"开始执行,执行参数为:{state}")
         result_state = query_graph_app.invoke(state)
         logger.info(f"执行结束,执行结果为:{result_state}")
         update_task_status(session_id,TASK_STATUS_COMPLETED,is_stream)
+
+        # M1-06：done 事件（来源/耗时/token 估算）
+        latency_ms = int((time.time() - started_at) * 1000)
+        answer_text = result_state.get("answer") or ""
+        if result_state.get("cache_hit"):
+            source = "semantic-cache"
+        elif result_state.get("denied_knowledge_ids") and not result_state.get("allowed_knowledge_ids"):
+            source = "denied"
+        elif result_state.get("skip_cache"):
+            source = "no-result"
+        else:
+            source = "rag"
+        push_to_session(session_id, SSEEvent.DONE, {
+            "source": source,
+            "latency": latency_ms,
+            "tokens": int(len(answer_text) / 1.6),  # 粗略估算（真实 usage 需 LLM 返回）
+        })
 
         if is_stream:
             push_to_session(
@@ -181,6 +201,8 @@ def query(
 
     # 是否异步
     if is_stream:
+        # 先创建 SSE 队列再受理任务（M1-06：客户端可在任务执行前完成订阅）
+        create_sse_queue(session_id)
         # 异步执行
         backgroundtasks.add_task(invoke_query_graph,
                                  session_id=session_id,
