@@ -15,6 +15,7 @@
 ## 约定
 
 - 跨会话状态只认规划三件套；决策记录在 `task_plan.md` 关键决策表
+- 任务分工双层记录：里程碑状态权威在 `task_plan.md`；进入某个 M 的实施后用 `to-tickets` 拆票到 `.scratch/`，票状态权威在 `.scratch/`（`progress.md` 只引用票号不复制内容）
 - `frontend-demo` 验证方式：`node --check js/*.js` + node 冒烟断言（stub window 后直接跑 services）
 - 需求要点、差距分析、demo↔后端模块映射见 `findings.md`，不要重复分析
 - 原则沿用全局：按痛渐进、外科手术式改动、完成前运行相称的验证
