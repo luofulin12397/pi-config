@@ -37,7 +37,7 @@ M1 frontier：认领 02（台账）、04（auth-me）、06（SSE 事件流）之
 - **状态：** complete
 
 ### 阶段 4：迭代实施计划（接入 ai_rag_knowbase-master）
-- [ ] M1：四维权限引擎改造（01-05 ✅ 全部完成并集成验收；余 06 SSE 事件流；联调环境：deploy/docker-compose.yml + DeepSeek/硅基流动 API）
+- [x] M1：四维权限引擎改造——六票全部 resolved（01 判定引擎 / 02 台账 / 03 权限配置 / 04 auth-me / 05 管线过滤★ / 06 SSE 事件流）；需求 2.9.9 场景一端到端 10/10、SSE 9/9
 - [ ] M2：前端工程化（demo → Vue3 工程，接真实 API）
 - [ ] M3：知识沉淀服务（FAQ 聚类挖掘/审核发布/缓存 + 缺口池）与运营看板聚合
 - [ ] M4：Word/TXT 解析支持 + 端到端演示（需求 2.9.9 场景二选一走通）
