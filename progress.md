@@ -65,3 +65,7 @@
 
 ### 变更文件
 - 新增 `docs/api-contract.md`；更新 task_plan.md / findings.md / progress.md
+
+### 阶段 4 启动：M1 拆票
+- `to-tickets` 拆为 6 张垂直切片票，发布至 `.scratch/m1-perm-engine/issues/`（01 权限模型 / 02 台账 / 03 权限配置 / 04 auth-me / 05 管线过滤★ / 06 SSE 事件流），全部 Status: ready-for-agent
+- Frontier：01、02、04、06 可立即并行开工；05 blocked by 01+03
