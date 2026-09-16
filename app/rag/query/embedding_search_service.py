@@ -1,6 +1,7 @@
 from app.process.query.agent.state import QueryGraphState
 from app.shared.runtime.logger import logger,step_log
 from app.infra.llm.providers import llm_provider
+from app.infra.persistence.knowledge_repository import knowledge_repository
 from app.infra.vectorstore.milvus_gateway import milvus_gateway
 
 @step_log("get_data_and_validates")
@@ -58,6 +59,14 @@ def milvus_search_entity(rewritten_query, item_names):
     # 4. 返回第一层结果
     return milvus_result[0]  if milvus_result and len(milvus_result) > 0 else []
 
+def filter_disabled_chunks(chunks: list[dict]) -> list[dict]:
+    """过滤已停用（enabled=False）知识单元的切片（M1-02：停用后检索不可命中）。"""
+    disabled = set(knowledge_repository.disabled_file_titles())
+    if not disabled:
+        return chunks
+    return [c for c in chunks if c.get("file_title") not in disabled]
+
+
 @step_log("normalize_retrieved_chunk")
 def normalize_retrieved_chunk(milvus_response: list[dict]) -> list[dict]:
     final_list_dict = []
@@ -81,7 +90,7 @@ def normalize_retrieved_chunk(milvus_response: list[dict]) -> list[dict]:
                 "url": None,  # 附件URL（无）
             }
         )
-    return final_list_dict
+    return filter_disabled_chunks(final_list_dict)
 
 
 @step_log("search_by_embedding")

@@ -2,6 +2,7 @@ import datetime
 
 from pymilvus import DataType
 
+from app.infra.persistence.knowledge_repository import knowledge_repository
 from app.infra.vectorstore.milvus_gateway import milvus_gateway
 from app.process.import_.agent.state import ImportGraphState
 from app.shared.runtime.logger import step_log,logger
@@ -154,6 +155,17 @@ def index_chunks(state: ImportGraphState) -> ImportGraphState:
     # 3. 插入数据 (删除 [file_title]/ 插入)
     remove_old_chunks(state['file_title'])
     insert_chunks(chunks)
-    # 4. log
+    # 4. 登记知识单元台账（幂等；失败不阻断导入结论，下次导入同文件会重新登记）
+    try:
+        knowledge_repository.register(
+            file_title=state["file_title"],
+            item_name=state.get("item_name", ""),
+            task_id=state.get("task_id", ""),
+            created_by=state.get("imported_by", ""),
+            chunks_count=len(chunks),
+        )
+    except Exception:
+        logger.exception("知识单元台账登记失败（向量已入库）")
+    # 5. log
     logger.info(f"{datetime.datetime.now().strftime('%Y%m%d')}完成{state['task_id']}导入文件数据入库操作!")
     return state

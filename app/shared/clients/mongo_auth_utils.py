@@ -19,6 +19,7 @@ class AuthMongoTool:
         self.user_roles = self.db["auth_user_roles"]
         self.refresh_tokens = self.db["auth_refresh_tokens"]
         self.document_permissions = self.db["document_permissions"]
+        self.knowledge_units = self.db["knowledge_units"]
         self._ensure_indexes()
 
     def _ensure_indexes(self) -> None:
@@ -30,6 +31,9 @@ class AuthMongoTool:
         self.document_permissions.create_index([("item_name", ASCENDING)])
         self.document_permissions.create_index([("file_title", ASCENDING)])
         self.document_permissions.create_index([("task_id", ASCENDING)])
+        self.document_permissions.create_index([("knowledge_id", ASCENDING)])
+        self.knowledge_units.create_index([("knowledge_id", ASCENDING)], unique=True)
+        self.knowledge_units.create_index([("file_title", ASCENDING)])
 
 
 _auth_mongo_tool: AuthMongoTool | None = None

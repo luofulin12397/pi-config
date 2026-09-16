@@ -46,6 +46,8 @@ app.add_middleware(
 )
 
 app.include_router(auth_router, prefix="/auth")
+from app.api.http.admin_routes import admin_router  # noqa: E402  (M1-02 知识单元台账)
+app.include_router(admin_router)
 
 
 @app.on_event("startup")
