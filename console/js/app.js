@@ -404,13 +404,13 @@
       },
       toggleUserEnabled: function (u) {
         Api.request("PUT", "/admin/users/" + u.id, { enabled: !u.enabled })
-          .then(function () { u.enabled = !u.enabled; window.__cs.toast(u.enabled ? "已启用" : "已禁用"); });
+          .then(function () { u.enabled = !u.enabled; window.__cs.toast(u.enabled ? "已启用" : "已禁用"); }).catch(function (e) { window.__cs.toast(e.message || "操作失败"); });
       },
       resetPwd: function (u) {
         var p = prompt("为「" + u.name + "」设置新密码：");
         if (!p) return;
         Api.request("PUT", "/admin/users/" + u.id, { password: p })
-          .then(function () { window.__cs.toast("密码已重置"); });
+          .then(function () { window.__cs.toast("密码已重置"); }).catch(function (e) { window.__cs.toast(e.message || "操作失败"); });
       },
       delUser: function (u) {
         if (!confirm("确认删除用户「" + u.name + "」？")) return;
@@ -441,7 +441,7 @@
       saveRole: function () {
         var f = state.org.roleEdit;
         Api.request("PUT", "/admin/roles/" + f.code, { menus: f.menus, buttons: f.buttons })
-          .then(function () { window.__cs.toast("角色权限已保存并即时生效"); });
+          .then(function () { window.__cs.toast("角色权限已保存并即时生效"); }).catch(function (e) { window.__cs.toast(e.message || "操作失败"); });
       },
       onImportFiles: function (e) {
         importFiles(e.target.files);
@@ -464,7 +464,7 @@
       del: function (u) {
         if (!confirm("确认删除《" + u.title + "》？将同步清理向量索引。")) return;
         Api.request("DELETE", "/admin/knowledge/" + u.id)
-          .then(function () { window.__cs.toast("已删除"); loadKnowledge(); });
+          .then(function () { window.__cs.toast("已删除"); loadKnowledge(); }).catch(function (e) { window.__cs.toast(e.message || "操作失败"); });
       },
       openChunks: function (u) {
         Api.request("GET", "/admin/knowledge/" + u.id + "/chunks")
@@ -507,7 +507,7 @@
         var self = this;
         var f = state.ops.addForm;
         Api.request("POST", "/ops/faq/candidates", { question: f.question, answer: f.answer })
-          .then(function () { state.ops.addForm = null; window.__cs.toast("候选已添加"); self.loadOps(); });
+          .then(function () { state.ops.addForm = null; window.__cs.toast("候选已添加"); self.loadOps(); }).catch(function (e) { window.__cs.toast(e.message || "操作失败"); });
       },
       publish: function (c) {
         var q = prompt("确认/修改标准问法：", c.question);
@@ -515,11 +515,11 @@
         var a = prompt("确认/修改标准答案：", c.answer || "");
         if (a === null) return;
         Api.request("POST", "/ops/faq/candidates/" + c.candidate_id + "/publish", { question: q, answer: a })
-          .then(function () { window.__cs.toast("已发布并写入高速缓存"); this.loadOps(); }.bind(this));
+          .then(function () { window.__cs.toast("已发布并写入高速缓存"); return this.loadOps(); }.bind(this)).catch(function (e) { window.__cs.toast(e.message || "操作失败"); });
       },
       reject: function (c) {
         Api.request("POST", "/ops/faq/candidates/" + c.candidate_id + "/reject", {})
-          .then(function () { window.__cs.toast("已驳回"); this.loadOps(); }.bind(this));
+          .then(function () { window.__cs.toast("已驳回"); return this.loadOps(); }.bind(this)).catch(function (e) { window.__cs.toast(e.message || "操作失败"); });
       },
       toggleFaqCache: function (f) {
         Api.request("PUT", "/ops/faqs/" + f.faq_id + "/cache", { enabled: !f.cacheEnabled })
@@ -528,7 +528,7 @@
       delFaq: function (f) {
         if (!confirm("删除该 FAQ？")) return;
         Api.request("DELETE", "/ops/faqs/" + f.faq_id)
-          .then(function () { window.__cs.toast("已删除"); this.loadOps(); }.bind(this));
+          .then(function () { window.__cs.toast("已删除"); return this.loadOps(); }.bind(this)).catch(function (e) { window.__cs.toast(e.message || "操作失败"); });
       },
       convertGap: function (g) {
         state.ops.convertForm = { gap: g, title: g.question, category: "待补充" };
@@ -627,7 +627,7 @@
             <a v-if="hasMenu('knowledge')" :class="{on: s.tab === 'knowledge'}" @click="go('knowledge')">知识维护与导入</a>
             <a v-if="hasMenu('ops')" :class="{on: s.tab === 'ops'}" @click="go('ops')">沉淀与运营</a>
             <a v-if="hasMenu('dashboard')" :class="{on: s.tab === 'dashboard'}" @click="go('dashboard')">运营看板</a>
-            <a class="disabled" title="后续迭代">组织与系统配置</a>
+            <a v-if="hasMenu('org')" :class="{on: s.tab === 'org'}" @click="go('org')">组织与系统配置</a>
           </nav>
           <div class="side-foot">
             <div class="me">
