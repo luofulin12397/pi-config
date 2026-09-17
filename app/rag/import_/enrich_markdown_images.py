@@ -285,8 +285,14 @@ def enrich_markdown_images(state: ImportGraphState) -> ImportGraphState:
     # List[tuple[str,str,tuple[str,str]]] [(图片名.jpg,图片完整地址,(上文,下文))]
     images_context : List[tuple[str,str,tuple[str,str]]] = scan_images(md_content,image_path_obj)
 
-    # 4. 使用视觉模型对图片进行意图识别（M4：视觉模型不可用时降级——图片原样保留，导入不阻断）
+    # 4. 使用视觉模型对图片进行意图识别
+    #    - IMAGE_ENHANCE_ENABLED=false：跳过视觉模型（如仅配置了无视觉能力的对话模型），图片直接上传原样引用
+    #    - 视觉模型异常：同样降级，图片原样保留，导入不阻断
+    import os as _os
+    _enhance = _os.getenv("IMAGE_ENHANCE_ENABLED", "true").strip().lower() not in ("false", "0", "no")
     try:
+        if not _enhance:
+            raise RuntimeError("IMAGE_ENHANCE_ENABLED=false，跳过图片摘要")
         images_summary_dict = summarize_images(images_context, md_path_obj.stem)
     except Exception:
         logger.exception("图片摘要失败（视觉模型不可用？），降级为仅上传图片原样引用")
