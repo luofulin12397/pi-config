@@ -6,7 +6,7 @@
 (function () {
   const { createApp, reactive, nextTick } = Vue;
 
-  // 全局 toast 兜底（mounted 时替换为带 UI 的实现）；避免依赖可选链语法
+  // 全局 toast 兜底（mounted 时替换为带 UI 的实现）；不依赖可选链语法
   window.__cs = { toast: function () {} };
 
   /* ---------- Markdown 渲染 ---------- */
@@ -17,13 +17,13 @@
   function mdRender(src) {
     const out = [];
     let listTag = "", inList = false;
-    const closeList = () => { if (inList) { out.push("</" + listTag + ">"); inList = false; } };
-    (src || "").split("\n").forEach(line => {
-      const ul = line.match(/^\s*[-*]\s+(.*)/), ol = line.match(/^\s*\d+[.、]\s+(.*)/);
-      if (ul) { if (!inList || listTag !== "ul") { closeList(); out.push("<ul>"); inList = "ul"; listTag = "ul"; } out.push("<li>" + inline(ul[1]) + "</li>"); }
-      else if (ol) { if (!inList || listTag !== "ol") { closeList(); out.push("<ol>"); inList = "ol"; listTag = "ol"; } out.push("<li>" + inline(ol[1]) + "</li>"); }
+    function closeList() { if (inList) { out.push("</" + listTag + ">"); inList = false; } }
+    (src || "").split("\n").forEach(function (line) {
+      var ul = line.match(/^\s*[-*]\s+(.*)/), ol = line.match(/^\s*\d+[.、]\s+(.*)/);
+      if (ul) { if (!inList || listTag !== "ul") { closeList(); out.push("<ul>"); inList = true; listTag = "ul"; } out.push("<li>" + inline(ul[1]) + "</li>"); }
+      else if (ol) { if (!inList || listTag !== "ol") { closeList(); out.push("<ol>"); inList = true; listTag = "ol"; } out.push("<li>" + inline(ol[1]) + "</li>"); }
       else if (/^>\s?/.test(line)) { closeList(); out.push("<blockquote>" + inline(line.replace(/^>\s?/, "")) + "</blockquote>"); }
-      else if (/^#{1,4}\s/.test(line)) { closeList(); const lv = line.match(/^#+/)[0].length; out.push("<h" + (lv + 2) + ">" + inline(line.replace(/^#+\s*/, "")) + "</h" + (lv + 2) + ">"); }
+      else if (/^#{1,4}\s/.test(line)) { closeList(); var lv = line.match(/^#+/)[0].length; out.push("<h" + (lv + 2) + ">" + inline(line.replace(/^#+\s*/, "")) + "</h" + (lv + 2) + ">"); }
       else if (line.trim() === "") { closeList(); }
       else { closeList(); out.push("<p>" + inline(line) + "</p>"); }
     });
@@ -31,14 +31,14 @@
     return out.join("");
   }
 
-  const STEP_LABELS = {
+  var STEP_LABELS = {
     faq: "FAQ 缓存匹配", context: "多轮上下文处理", search: "混合检索（向量+关键词）",
     auth: "四维数据权限鉴权", compose: "提示词组装", generate: "大模型流式生成",
   };
-  const STEP_ICONS = { pending: "○", running: "⟳", done: "✓", skipped: "—" };
+  var STEP_ICONS = { pending: "○", running: "⟳", done: "✓", skipped: "—" };
 
   /* ---------- 全局状态 ---------- */
-  const state = reactive({
+  var state = reactive({
     view: "login",
     tab: "chat",
     loginForm: { username: "", password: "" },
@@ -46,6 +46,7 @@
     user: null,
     draft: "",
     busy: false,
+    toastText: "",
     messages: [],
     kb: {
       units: [], kw: "", loading: false,
@@ -55,46 +56,55 @@
       depts: [], roles: [], users: [],
     },
   });
-  window.consoleState = state;
 
   function hasBtn(key) {
-    return ((state.user && state.user.buttons) || []).includes(key);
+    return ((state.user && state.user.buttons) || []).indexOf(key) >= 0;
   }
 
-  /* ---------- SSE / 聊天（M2-01） ---------- */
-  let es = null;
-  function currentAssistant() {
-    const m = state.messages;
-    return m.length && m[m.length - 1].role === "assistant" ? m[m.length - 1] : null;
-  }
+  /* ---------- SSE / 聊天 ---------- */
+  var es = null;
   function ensureSteps(msg) {
-    if (!msg.steps) msg.steps = Object.keys(STEP_LABELS).map(k => ({ key: k, label: STEP_LABELS[k], status: "pending", detail: "" }));
+    if (!msg.steps) {
+      msg.steps = Object.keys(STEP_LABELS).map(function (k) {
+        return { key: k, label: STEP_LABELS[k], status: "pending", detail: "" };
+      });
+    }
     return msg.steps;
   }
   function applyStep(msg, key, status, detail) {
-    const s = ensureSteps(msg).find(x => x.key === key);
-    if (s) { s.status = status; if (detail) s.detail = detail; }
+    var arr = ensureSteps(msg);
+    for (var i = 0; i < arr.length; i++) {
+      if (arr[i].key === key) { arr[i].status = status; if (detail) arr[i].detail = detail; }
+    }
   }
   function startStream(sessionId, msg, onFinished) {
-    return Api.sseToken().then(st => {
-      es = new EventSource(`/stream/${sessionId}?token=${encodeURIComponent(st)}`);
-      es.addEventListener("step", e => applyStep(msg, ...((d => [d.key, d.status, d.detail])(JSON.parse(e.data)))));
-      es.addEventListener("delta", e => { msg.text += JSON.parse(e.data).delta; msg.streaming = true; });
-      es.addEventListener("refs", e => {
-        const d = JSON.parse(e.data);
-        msg.refs = (d.refs || []).map(c => ({ title: c.title || c.name || "知识切片", score: c.score || null, text: c.content || "" }));
+    return Api.sseToken().then(function (st) {
+      es = new EventSource("/stream/" + sessionId + "?token=" + encodeURIComponent(st));
+      es.addEventListener("step", function (e) {
+        var d = JSON.parse(e.data);
+        applyStep(msg, d.key, d.status, d.detail);
+      });
+      es.addEventListener("delta", function (e) {
+        msg.text += JSON.parse(e.data).delta;
+        msg.streaming = true;
+      });
+      es.addEventListener("refs", function (e) {
+        var d = JSON.parse(e.data);
+        msg.refs = (d.refs || []).map(function (c) {
+          return { title: c.title || c.name || "知识切片", score: c.score || null, text: c.content || c.text || "" };
+        });
         msg.deniedCount = d.deniedCount || 0;
       });
-      es.addEventListener("done", e => { msg.meta = JSON.parse(e.data); });
-      es.addEventListener("final", e => {
-        const d = JSON.parse(e.data);
+      es.addEventListener("done", function (e) { msg.meta = JSON.parse(e.data); });
+      es.addEventListener("final", function (e) {
+        var d = JSON.parse(e.data);
         if (d.answer && !msg.text) msg.text = d.answer;
         if (d.citations && d.citations.length && !msg.refs) msg.refs = d.citations;
         msg.streaming = false;
         stopStream(); onFinished();
       });
-      es.addEventListener("error", e => {
-        let t = "服务异常";
+      es.addEventListener("error", function (e) {
+        var t = "服务异常";
         try { t = JSON.parse(e.data).error || t; } catch (_) {}
         if (!msg.text) msg.text = t;
         msg.streaming = false;
@@ -104,193 +114,225 @@
   }
   function stopStream() { if (es) { es.close(); es = null; } }
 
-  /* ---------- 知识中心（M2-02） ---------- */
-  async function loadKnowledge() {
-    const kb = state.kb;
+  /* ---------- 知识中心 ---------- */
+  function loadKnowledge() {
+    var kb = state.kb;
     kb.loading = true;
-    try {
-      kb.units = await Api.request("GET", "/admin/knowledge" + (kb.kw ? "?kw=" + encodeURIComponent(kb.kw) : ""));
-    } catch (e) { window.__cs.toast(e.message); }
-    kb.loading = false;
+    var qs = kb.kw ? "?kw=" + encodeURIComponent(kb.kw) : "";
+    Api.request("GET", "/admin/knowledge" + qs)
+      .then(function (units) { kb.units = units || []; })
+      .catch(function (e) { window.__cs.toast(e.message); })
+      .then(function () { kb.loading = false; });
   }
-  async function openPerm(unit) {
-    const kb = state.kb;
-    const perms = await Api.request("GET", `/admin/knowledge/${unit.id}/permissions`);
-    kb.depts = await Api.request("GET", "/admin/departments");
-    kb.users = await Api.request("GET", "/admin/users");
-    const roleData = await Api.request("GET", "/auth/roles");
-    kb.roles = (roleData || []).map(r => ({ code: r.code || r.id, name: r.name }));
-    const p = perms.perms || {};
-    kb.perm = unit;
-    kb.permForm = {
-      global_: !!p.global,
-      department_ids: [...(p.department_ids || [])],
-      role_ids: [...(p.role_ids || [])],
-      user_ids: [...(p.user_ids || [])],
-    };
+  function openPerm(unit) {
+    var kb = state.kb;
+    Api.request("GET", "/admin/knowledge/" + unit.id + "/permissions").then(function (perms) {
+      var p = perms.perms || {};
+      kb.perm = unit;
+      kb.permForm = {
+        global_: !!p.global,
+        department_ids: (p.department_ids || []).slice(),
+        role_ids: (p.role_ids || []).slice(),
+        user_ids: (p.user_ids || []).slice(),
+      };
+      Api.request("GET", "/admin/departments").then(function (d) { kb.depts = d || []; });
+      Api.request("GET", "/admin/users").then(function (u) { kb.users = u || []; });
+      Api.request("GET", "/auth/roles").then(function (r) {
+        kb.roles = (r || []).map(function (x) { return { code: x.code || x.id, name: x.name }; });
+      });
+    });
   }
-  async function savePerm() {
-    const kb = state.kb;
-    await Api.request("PUT", `/admin/knowledge/${kb.perm.id}/permissions`, kb.permForm);
-    window.__cs.toast("权限已保存并即时生效");
-    kb.perm = null;
-    await loadKnowledge();
+  function savePermCurrent() {
+    var kb = state.kb;
+    Api.request("PUT", "/admin/knowledge/" + kb.perm.id + "/permissions", kb.permForm)
+      .then(function () {
+        window.__cs.toast("权限已保存并即时生效");
+        kb.perm = null;
+        loadKnowledge();
+      });
   }
   function toggleIn(list, v) {
-    const i = list.indexOf(v);
-    i >= 0 ? list.splice(i, 1) : list.push(v);
+    var i = list.indexOf(v);
+    if (i >= 0) list.splice(i, 1); else list.push(v);
   }
-  async function importFiles(fileList) {
-    const kb = state.kb;
-    const ok = ["pdf", "md", "doc", "docx", "txt"];
-    for (const f of fileList) {
-      const ext = (f.name.split(".").pop() || "").toLowerCase();
-      if (!ok.includes(ext)) { window.__cs.toast(`不支持的格式：${f.name}`); continue; }
-      if (kb.importJobs.some(j => j.name === f.name && !j.done)) continue;
-      kb.importJobs.push({ name: f.name, progress: 0, stage: "上传中…", done: false });
-    }
-    kb.importing = true;
-    for (const job of kb.importJobs.filter(j => !j.done)) {
-      try {
-        job.stage = "上传中…";
-        const fd = new FormData();
-        fd.append("files", fileStore[job.name] || job.file);
-        fd.append("allowed_roles", '["admin","common_user"]');
-        const resp = await fetch("/admin/import/upload", {
-          method: "POST",
-          headers: { Authorization: "Bearer " + Api.token() },
-          body: fd,
-        });
-        const json = await resp.json();
+  function importOne(job) {
+    var kb = state.kb;
+    job.stage = "上传中…";
+    var fd = new FormData();
+    fd.append("files", fileStore[job.name]);
+    fd.append("allowed_roles", '["admin","common_user"]');
+    return fetch("/admin/import/upload", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + Api.token() },
+      body: fd,
+    }).then(function (resp) {
+      return resp.json().then(function (json) {
         if (!resp.ok) throw new Error(json.detail || "上传失败");
         job.taskId = json.task_ids[0];
-        // 轮询导入状态（done_list/running_list 驱动进度）
-        while (true) {
-          const st = await Api.request("GET", `/admin/import/status/${job.taskId}`);
-          const total = (st.done_list || []).length + (st.running_list || []).length;
-          job.progress = total ? Math.round((st.done_list || []).length / total * 100) : (job.progress || 5);
-          job.stage = (st.running_list || [])[0] || "处理中…";
-          if (st.status === "completed") { job.progress = 100; job.stage = "入库完成"; job.done = true; break; }
-          if (st.status === "failed") { job.stage = "失败"; throw new Error("导入失败"); }
-          await new Promise(r => setTimeout(r, 2000));
+        function poll() {
+          return Api.request("GET", "/admin/import/status/" + job.taskId).then(function (st) {
+            var total = (st.done_list || []).length + (st.running_list || []).length;
+            job.progress = total ? Math.round((st.done_list || []).length / total * 100) : 5;
+            job.stage = (st.running_list || [])[0] || "处理中…";
+            if (st.status === "completed") { job.progress = 100; job.stage = "入库完成"; job.done = true; return; }
+            if (st.status === "failed") { job.stage = "失败"; throw new Error("导入失败"); }
+            return new Promise(function (r) { setTimeout(poll, 2000); });
+          });
         }
-        window.__cs.toast(`《${job.name}》导入完成`);
-      } catch (e) {
-        job.stage = "失败：" + (e.message || e);
-        job.done = true;
-      }
-    }
-    kb.importing = false;
-    await loadKnowledge();
+        return poll();
+      });
+    });
   }
-  const fileStore = {};
+  var fileStore = {};
+  function importFiles(files) {
+    var kb = state.kb;
+    var ok = ["pdf", "md", "doc", "docx", "txt"];
+    var queue = [];
+    Array.from(files).forEach(function (f) {
+      var ext = (f.name.split(".").pop() || "").toLowerCase();
+      if (ok.indexOf(ext) < 0) { window.__cs.toast("不支持的格式：" + f.name); return; }
+      fileStore[f.name] = f;
+      kb.importJobs.push({ name: f.name, progress: 0, stage: "排队中…", done: false });
+      queue.push(f.name);
+    });
+    kb.importing = true;
+    var chain = Promise.resolve();
+    queue.forEach(function (name) {
+      var job = null;
+      for (var i = kb.importJobs.length - 1; i >= 0; i--) if (kb.importJobs[i].name === name) { job = kb.importJobs[i]; break; }
+      chain = chain.then(function () { return importOne(job); })
+        .then(function () { window.__cs.toast("《" + name + "》导入完成"); })
+        .catch(function (e) { job.stage = "失败：" + (e.message || e); });
+    });
+    chain.then(function () {
+      kb.importing = false;
+      loadKnowledge();
+    });
+  }
 
   /* ---------- 根组件 ---------- */
-  const App = {
-    data: () => ({ s: state }),
+  var App = {
+    data: function () { return { s: state, draft: "" }; },
     computed: {
       draftProxy: {
-        get() { return state.draft; },
-        set(v) { state.draft = v; },
+        get: function () { return state.draft; },
+        set: function (v) { state.draft = v; },
       },
-      kbUnitsFiltered() {
-        const kw = state.kb.kw.trim();
+      kbUnitsFiltered: function () {
+        var kw = state.kb.kw.trim();
         if (!kw) return state.kb.units;
-        return state.kb.units.filter(u => (u.title || "").includes(kw));
+        return state.kb.units.filter(function (u) { return (u.title || "").indexOf(kw) >= 0; });
+      },
+      groupUsers: function () {
+        var groups = {};
+        state.kb.users.forEach(function (u) {
+          (groups[u.departmentId] = groups[u.departmentId] || []).push(u);
+        });
+        return Object.keys(groups).map(function (dept) {
+          return { dept: dept, users: groups[dept] };
+        });
       },
     },
     methods: {
-      mdRender,
-      stepIcon: (s) => STEP_ICONS[s] || "○",
-      hasBtn,
-      go(tab) {
-        if (tab === "knowledge") { state.tab = "knowledge"; loadKnowledge(); }
-        else state.tab = tab;
+      mdRender: mdRender,
+      stepIcon: function (s) { return STEP_ICONS[s] || "○"; },
+      hasBtn: hasBtn,
+      hasMenu: hasMenu,
+      go: function (tab) {
+        state.tab = tab;
+        if (tab === "knowledge") loadKnowledge();
       },
-      async doLogin() {
+      doLogin: function () {
         state.loginError = "";
-        try {
-          const d = await Api.login(state.loginForm.username, state.loginForm.password);
+        Api.login(state.loginForm.username, state.loginForm.password).then(function (d) {
           Api.setToken(d.access_token);
-          state.user = await Api.me();
-          state.view = "console";
-          state.tab = "chat";
-        } catch (e) { state.loginError = e.message || "登录失败"; }
+          Api.me().then(function (u) {
+            state.user = u;
+            state.view = "console";
+            state.tab = "chat";
+          });
+        }).catch(function (e) { state.loginError = e.message || "登录失败"; });
       },
-      logout() { Api.clearToken(); state.view = "login"; state.user = null; state.messages = []; },
-
-      /* 聊天 */
-      async send() {
-        const q = state.draft.trim();
+      logout: function () {
+        Api.clearToken();
+        state.view = "login";
+        state.user = null;
+        state.messages = [];
+      },
+      send: function () {
+        var q = state.draft.trim();
         if (!q || state.busy) return;
         state.messages.push({ role: "user", text: q });
         state.draft = "";
         state.busy = true;
-        const msg = reactive({ role: "assistant", text: "", steps: null, refs: null, deniedCount: 0, meta: null, streaming: false });
+        var msg = reactive({ role: "assistant", text: "", steps: null, refs: null, deniedCount: 0, meta: null, streaming: false });
         state.messages.push(msg);
-        await nextTick(); this.scrollBottom();
-        const sessionId = crypto.randomUUID ? crypto.randomUUID() : "s-" + Date.now();
-        try {
-          await startStream(sessionId, msg, () => { state.busy = false; this.scrollBottom(); });
-          await Api.queryStream(q, sessionId);
-        } catch (e) {
-          msg.text = "请求失败：" + (e.message || e);
-          msg.streaming = false;
-          state.busy = false;
-        }
+        nextTick(); this.scrollBottom();
+        var sessionId = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : "s-" + Date.now();
+        var self = this;
+        startStream(sessionId, msg, function () { state.busy = false; self.scrollBottom(); })
+          .then(function () { return Api.queryStream(q, sessionId); })
+          .catch(function (e) {
+            msg.text = "请求失败：" + (e.message || e);
+            msg.streaming = false;
+            state.busy = false;
+          });
         this.scrollBottom();
       },
-      scrollBottom() {
-        nextTick(() => { const el = this.$refs.msgs; if (el) el.scrollTop = el.scrollHeight; });
+      scrollBottom: function () {
+        nextTick(function () {
+          var el = document.querySelector(".msgs");
+          if (el) el.scrollTop = el.scrollHeight;
+        });
       },
-
-      /* 知识中心 */
-      onImportFiles(e) {
-        for (const f of e.target.files) fileStore[f.name] = f;
-        this.importFiles(Array.from(e.target.files));
+      onImportFiles: function (e) {
+        importFiles(e.target.files);
         e.target.value = "";
       },
-      onDrop(e) {
-        for (const f of e.dataTransfer.files) fileStore[f.name] = f;
-        this.importFiles(Array.from(e.dataTransfer.files));
+      toggleEnabled: function (u) {
+        Api.request("PUT", "/admin/knowledge/" + u.id, { enabled: !u.enabled }).then(function () {
+          u.enabled = !u.enabled;
+          window.__cs.toast(u.enabled ? "已启用" : "已停用（检索不可命中）");
+        });
       },
-      toggleEnabled(u) {
-        Api.request("PUT", `/admin/knowledge/${u.id}`, { enabled: !u.enabled })
-          .then(() => { u.enabled = !u.enabled; window.__cs.toast(u.enabled ? "已启用" : "已停用（检索不可命中）"); });
+      saveEdit: function () {
+        var e = state.kb.edit;
+        Api.request("PUT", "/admin/knowledge/" + e.id, { title: e.title, category: e.category })
+          .then(function () { state.kb.edit = null; window.__cs.toast("已保存"); loadKnowledge(); });
       },
-      saveEdit() {
-        const e = state.kb.edit;
-        Api.request("PUT", `/admin/knowledge/${e.id}`, { title: e.title, category: e.category })
-          .then(() => { state.kb.edit = null; window.__cs.toast("已保存"); loadKnowledge(); });
+      del: function (u) {
+        if (!confirm("确认删除《" + u.title + "》？将同步清理向量索引。")) return;
+        Api.request("DELETE", "/admin/knowledge/" + u.id)
+          .then(function () { window.__cs.toast("已删除"); loadKnowledge(); });
       },
-      del(u) {
-        if (!confirm(`确认删除《${u.title}》？将同步清理向量索引。`)) return;
-        Api.request("DELETE", `/admin/knowledge/${u.id}`)
-          .then(() => { window.__cs.toast("已删除"); loadKnowledge(); });
+      openChunks: function (u) {
+        Api.request("GET", "/admin/knowledge/" + u.id + "/chunks")
+          .then(function (list) { state.kb.chunks = { title: u.title, list: list || [] }; });
       },
-      openChunks(u) {
-        Api.request("GET", `/admin/knowledge/${u.id}/chunks`)
-          .then(list => { state.kb.chunks = { title: u.title, list }; });
-      },
-      openPerm(u) {
-        openPerm(u);
-      },
-      toggleArr(list, v) { toggleIn(list, v); },
-      savePerm() { savePerm(); },
-      fmtTime(iso) {
+      openPerm: function (u) { openPerm(u); },
+      toggleArr: function (list, v) { toggleIn(list, v); },
+      savePerm: function () { savePermCurrent(); },
+      fmtTime: function (iso) {
         if (!iso) return "—";
-        const d = new Date(iso);
-        return `${d.getMonth() + 1}-${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+        var d = new Date(iso);
+        return (d.getMonth() + 1) + "-" + d.getDate() + " " +
+          String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
       },
     },
-    mounted() {
-      window.__cs.toast = (t) => { state.toastText = t; setTimeout(() => { state.toastText = ""; }, 2600); };
+    mounted: function () {
+      window.__cs.toast = function (t) {
+        state.toastText = t;
+        setTimeout(function () { state.toastText = ""; }, 2600);
+      };
       if (Api.token()) {
-        Api.me().then(u => { state.user = u; state.view = "console"; }).catch(() => Api.clearToken());
+        var self = this;
+        Api.me().then(function (u) {
+          state.user = u;
+          state.view = "console";
+        }).catch(function () { Api.clearToken(); });
       }
     },
     template: `
-      <!-- 登录 -->
       <div v-if="s.view === 'login'" class="login-page">
         <div class="login-hero">
           <div class="login-logo">📚</div>
@@ -307,31 +349,29 @@
         </div>
       </div>
 
-      <!-- 控制台 -->
       <div v-else class="shell">
         <aside class="sidenav">
           <div class="logo">📚 华智智库</div>
           <div class="logo-sub">RAG 知识库管理平台</div>
           <nav>
             <a :class="{on: s.tab === 'chat'}" @click="go('chat')">AI 问答工作台</a>
-            <a v-if="((s.user && s.user.menus) || []).includes('knowledge')" :class="{on: s.tab === 'knowledge'}" @click="go('knowledge')">知识维护与导入</a>
+            <a v-if="hasMenu('knowledge')" :class="{on: s.tab === 'knowledge'}" @click="go('knowledge')">知识维护与导入</a>
             <a class="disabled" title="M3">沉淀与运营</a>
             <a class="disabled" title="M3">运营看板</a>
             <a class="disabled" title="后续迭代">组织与系统配置</a>
           </nav>
           <div class="side-foot">
             <div class="me">
-              <div class="acc-avatar">{{ ((s.user && s.user.display_name) || '?')[0] }}</div>
+              <div class="acc-avatar">{{ (s.user.display_name || '?')[0] }}</div>
               <div class="me-info">
                 <div class="me-name">{{ s.user.display_name }}</div>
-                <div class="me-sub">{{ ((s.user && s.user.roles) || []).join(' / ') }}</div>
+                <div class="me-sub">{{ (s.user.roles || []).join(' / ') }}</div>
               </div>
             </div>
             <a class="link danger" @click="logout">退出登录</a>
           </div>
         </aside>
 
-        <!-- ===== AI 问答工作台 ===== -->
         <div v-if="s.tab === 'chat'" class="chat-main">
           <div class="msgs" ref="msgs">
             <div v-if="s.messages.length === 0" class="chat-welcome">
@@ -379,7 +419,6 @@
           </div>
         </div>
 
-        <!-- ===== 知识维护与导入中心 ===== -->
         <div v-else-if="s.tab === 'knowledge'" class="page">
           <div class="page-head">
             <h2>知识维护与导入中心</h2>
@@ -400,9 +439,7 @@
                   <td class="strong">{{ u.title }}</td>
                   <td><span class="tag fmt">{{ (u.format || '').toUpperCase() }}</span></td>
                   <td>{{ u.category }}</td>
-                  <td>
-                    <span v-for="l in (u.permLabels || [])" :key="l" class="perm-tag">{{ l }}</span>
-                  </td>
+                  <td><span v-for="l in (u.permLabels || [])" :key="l" class="perm-tag">{{ l }}</span></td>
                   <td>{{ u.chunksCount }}</td>
                   <td><label class="switch"><input type="checkbox" :checked="u.enabled" @change="toggleEnabled(u)" /><i></i></label></td>
                   <td class="muted">{{ fmtTime(u.updatedAt) }}</td>
@@ -419,7 +456,6 @@
             </table>
           </div>
 
-          <!-- 导入任务进度 -->
           <div v-if="s.kb.importJobs.length" class="card" style="margin-top:14px">
             <h3>导入任务</h3>
             <div v-for="j in s.kb.importJobs" :key="j.name" class="job">
@@ -429,7 +465,6 @@
             </div>
           </div>
 
-          <!-- 编辑弹窗 -->
           <div v-if="s.kb.edit" class="modal-mask" @click.self="s.kb.edit = null">
             <div class="modal">
               <div class="modal-head"><h3>编辑知识单元</h3><a class="x" @click="s.kb.edit = null">✕</a></div>
@@ -442,7 +477,6 @@
             </div>
           </div>
 
-          <!-- 切片预览抽屉 -->
           <div v-if="s.kb.chunks" class="drawer-mask" @click.self="s.kb.chunks = null">
             <div class="drawer">
               <div class="drawer-head"><h3>切片预览 —《{{ s.kb.chunks.title }}》</h3><a class="x" @click="s.kb.chunks = null">✕</a></div>
@@ -454,7 +488,6 @@
             </div>
           </div>
 
-          <!-- 四维权限弹窗 -->
           <div v-if="s.kb.perm" class="modal-mask" @click.self="s.kb.perm = null">
             <div class="modal perm-dialog">
               <div class="modal-head"><h3>四维数据权限 —《{{ s.kb.perm.title }}》</h3><a class="x" @click="s.kb.perm = null">✕</a></div>
@@ -469,7 +502,7 @@
                 <div class="perm-block span2">
                   <h4><span class="perm-tag dept">部门 department</span></h4>
                   <label v-for="d in s.kb.depts" :key="d.id" class="check-row">
-                    <input type="checkbox" :checked="s.kb.permForm.department_ids.includes(d.id)" @change="toggleArr(s.kb.permForm.department_ids, d.id)" /> {{ d.name }}
+                    <input type="checkbox" :checked="s.kb.permForm.department_ids.indexOf(d.id) >= 0" @change="toggleArr(s.kb.permForm.department_ids, d.id)" /> {{ d.name }}
                   </label>
                 </div>
                 <div class="perm-block span2">
@@ -483,7 +516,7 @@
                   <div v-for="g in groupUsers" :key="g.dept" class="ugroup">
                     <div class="ug-name">{{ g.dept || '未分配部门' }}</div>
                     <label v-for="u in g.users" :key="u.id" class="check-row inline">
-                      <input type="checkbox" :checked="s.kb.permForm.user_ids.includes(u.id)" @change="toggleArr(s.kb.permForm.user_ids, u.id)" />
+                      <input type="checkbox" :checked="s.kb.permForm.user_ids.indexOf(u.id) >= 0" @change="toggleArr(s.kb.permForm.user_ids, u.id)" />
                       {{ u.name }} <span class="muted">({{ u.username }})</span>
                     </label>
                   </div>
@@ -497,21 +530,23 @@
           </div>
         </div>
 
-        <!-- Toast -->
         <div class="toast-fixed" v-if="s.toastText">{{ s.toastText }}</div>
       </div>
     `,
-    computed: {
-      groupUsers() {
-        const kb = state.kb;
-        const groups = {};
-        kb.users.forEach(u => {
-          (groups[u.departmentId] = groups[u.departmentId] || []).push(u);
-        });
-        return Object.entries(groups).map(([dept, users]) => ({ dept, users }));
-      },
-    },
   };
 
-  createApp(App).mount("#app");
+  var app = createApp(App);
+  // 渲染错误直接上屏（Vue 自行捕获渲染异常，window error 事件收不到）
+  app.config.errorHandler = function (err, _vm, info) {
+    var el = document.createElement("pre");
+    el.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:99999;background:#7f1d1d;color:#fff;padding:10px;font-size:12px;white-space:pre-wrap;";
+    el.textContent = "[Vue 渲染错误] " + ((err && err.message) || err) + "\n阶段: " + info;
+    document.body.appendChild(el);
+    if (window.console && console.error) console.error("[Vue errorHandler]", err, info);
+  };
+  app.mount("#app");
+
+  function hasMenu(key) {
+    return ((state.user && state.user.menus) || []).indexOf(key) >= 0;
+  }
 })();
