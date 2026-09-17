@@ -176,11 +176,20 @@
       return resp.json().then(function (json) {
         if (!resp.ok) throw new Error(json.detail || "上传失败");
         job.taskId = json.task_ids[0];
+        var STAGE_OF_NODE = {
+          upload_file: "文本清洗", node_pdf_to_md: "文本清洗", node_md_img: "文本清洗",
+          node_document_split: "智能分块", node_item_name_recognition: "智能分块",
+          node_bge_embedding: "语义向量化",
+          node_import_milvus: "索引入库",
+        };
+        var STAGE_ORDER = ["文本清洗", "智能分块", "语义向量化", "索引入库"];
         function poll() {
           return Api.request("GET", "/admin/import/status/" + job.taskId).then(function (st) {
-            var total = (st.done_list || []).length + (st.running_list || []).length;
-            job.progress = total ? Math.round((st.done_list || []).length / total * 100) : 5;
-            job.stage = (st.running_list || [])[0] || "处理中…";
+            var done = st.done_list || [], running = st.running_list || [];
+            var total = done.length + running.length;
+            var currentStage = STAGE_OF_NODE[running[0]] || (st.status === "completed" ? "索引入库" : "文本清洗");
+            job.progress = total ? Math.min(99, Math.round(done.length / total * 100)) : 5;
+            job.stage = "当前阶段：" + currentStage;
             if (st.status === "completed") { job.progress = 100; job.stage = "入库完成"; job.done = true; return; }
             if (st.status === "failed") { job.stage = "失败"; throw new Error("导入失败"); }
             return new Promise(function (r) { setTimeout(poll, 2000); });
@@ -297,6 +306,9 @@
       onImportFiles: function (e) {
         importFiles(e.target.files);
         e.target.value = "";
+      },
+      onDrop: function (e) {
+        if (e.dataTransfer && e.dataTransfer.files.length) importFiles(e.dataTransfer.files);
       },
       toggleEnabled: function (u) {
         Api.request("PUT", "/admin/knowledge/" + u.id, { enabled: !u.enabled }).then(function () {
@@ -532,7 +544,7 @@
           </div>
         </div>
 
-        <div v-else-if="s.tab === 'knowledge'" class="page">
+        <div v-else-if="s.tab === 'knowledge'" class="page" @dragover.prevent @drop.prevent="onDrop">
           <div class="page-head">
             <h2>知识维护与导入中心</h2>
             <label v-if="hasBtn('import')" class="btn primary" style="cursor:pointer">
