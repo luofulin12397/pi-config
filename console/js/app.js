@@ -70,6 +70,8 @@
     },
   });
 
+  window.consoleState = state;   // 调试钩子（控制台可查状态）
+
   function hasBtn(key) {
     return ((state.user && state.user.buttons) || []).indexOf(key) >= 0;
   }
@@ -282,7 +284,7 @@
 
   /* ---------- 根组件 ---------- */
   var App = {
-    data: function () { return { s: state, draft: "" }; },
+    data: function () { return { s: state, draft: "", menuDefs: MENU_DEFS }; },
     computed: {
       draftProxy: {
         get: function () { return state.draft; },
@@ -474,7 +476,6 @@
       toggleArr: function (list, v) { toggleIn(list, v); },
       savePerm: function () { savePermCurrent(); },
       hasMenu: function (k) { return hasMenu(k); },
-      menuDefs: MENU_DEFS,
       loadOps: function () {
         var self = this;
         state.ops.loading = true;
@@ -534,14 +535,15 @@
         state.ops.convertForm = { gap: g, title: g.question, category: "待补充" };
       },
       saveConvert: function () {
+        var self = this;
         var f = state.ops.convertForm;
         Api.request("POST", "/ops/gaps/" + f.gap.gap_id + "/convert", { title: f.title, category: f.category })
           .then(function (d) {
             state.ops.convertForm = null;
-            var self = this;
             window.__cs.toast("已创建补全任务《" + d.title + "》（占位停用，补充内容并启用后可被检索）");
             self.loadOps();
-          });
+          })
+          .catch(function (e) { window.__cs.toast((e && e.message) || "操作失败"); });
       },
       loadDashboard: function () {
         var self = this;
