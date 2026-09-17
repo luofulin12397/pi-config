@@ -156,3 +156,9 @@
 - 会话侧栏：/history 按 session 分组、点击加载、新会话
 - 组织页：用户 CRUD（禁用=login 403）、角色 menus/buttons 编辑、模型配置只读卡
 - 修复：list_console_users 字段映射丢弃问题；组织 E2E 7/7
+
+### 会话 4 续：Playwright 冒烟测试接入 + 前端三连修
+- 服务器安装 Playwright（chromium headless），新增 scripts/console_smoke.py：登录 → 遍历 5 页 → 收集 console 错误 → 截图
+- 三连修：①诊断脚本块缺 `</script>` 闭合 → 每次页面加载 SyntaxError（红条常驻根因）②「组织与系统配置」入口仍为 disabled 占位 ③saveCandidate 回调 this 未绑定
+- 冒烟结果：登录/知识中心(11行)/沉淀(4tab)/看板(6KPI)/组织(表格)全部渲染，页面 JS 错误 0
+- 说明：用户看到的红条 = ①的错误（功能不受影响），现已根治
