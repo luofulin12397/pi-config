@@ -24,6 +24,12 @@ def resolve_input_file(state: ImportGraphState) -> ImportGraphState:
     if local_file_path.endswith(".md"):
         state['is_md_read_enabled'] = True
         state['md_path'] = local_file_path
+    # M4：TXT / Word 统一转换为 Markdown 后走 MD 链路
+    elif local_file_path.lower().endswith((".txt", ".docx", ".doc")):
+        from app.rag.import_.text_convert_service import convert_to_markdown
+        md_path = convert_to_markdown(local_file_path)
+        state['is_md_read_enabled'] = True
+        state['md_path'] = md_path
     # 4. 判断是pdf is_pdf_read_enabled = True  pdf_path =  local_file_path
     elif local_file_path.endswith(".pdf"):
         state['is_pdf_read_enabled'] = True
