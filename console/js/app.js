@@ -363,9 +363,10 @@
       },
       startAdd: function () { state.ops.addForm = { question: "", answer: "" }; },
       saveCandidate: function () {
+        var self = this;
         var f = state.ops.addForm;
         Api.request("POST", "/ops/faq/candidates", { question: f.question, answer: f.answer })
-          .then(function () { state.ops.addForm = null; window.__cs.toast("候选已添加"); this.loadOps(); });
+          .then(function () { state.ops.addForm = null; window.__cs.toast("候选已添加"); self.loadOps(); });
       },
       publish: function (c) {
         var q = prompt("确认/修改标准问法：", c.question);
@@ -373,11 +374,11 @@
         var a = prompt("确认/修改标准答案：", c.answer || "");
         if (a === null) return;
         Api.request("POST", "/ops/faq/candidates/" + c.candidate_id + "/publish", { question: q, answer: a })
-          .then(function () { var self = this; window.__cs.toast("已发布并写入高速缓存"); this.loadOps(); }.bind(this));
+          .then(function () { window.__cs.toast("已发布并写入高速缓存"); this.loadOps(); }.bind(this));
       },
       reject: function (c) {
         Api.request("POST", "/ops/faq/candidates/" + c.candidate_id + "/reject", {})
-          .then(function () { var self = this; window.__cs.toast("已驳回"); this.loadOps(); }.bind(this));
+          .then(function () { window.__cs.toast("已驳回"); this.loadOps(); }.bind(this));
       },
       toggleFaqCache: function (f) {
         Api.request("PUT", "/ops/faqs/" + f.faq_id + "/cache", { enabled: !f.cacheEnabled })
@@ -386,7 +387,7 @@
       delFaq: function (f) {
         if (!confirm("删除该 FAQ？")) return;
         Api.request("DELETE", "/ops/faqs/" + f.faq_id)
-          .then(function () { var self = this; window.__cs.toast("已删除"); this.loadOps(); }.bind(this));
+          .then(function () { window.__cs.toast("已删除"); this.loadOps(); }.bind(this));
       },
       convertGap: function (g) {
         state.ops.convertForm = { gap: g, title: g.question, category: "待补充" };
