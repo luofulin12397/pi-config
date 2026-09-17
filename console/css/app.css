@@ -20,7 +20,9 @@ h1, h2, h3 { font-weight: 600; }
 .ipt { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 13px; width: 100%; outline: none; }
 .ipt:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
 .form-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-.form-row > label { width: 48px; flex: none; color: var(--ink-2); }
+.form-row > label { width: 110px; flex: none; color: var(--ink-2); text-align: right; font-size: 13px; }
+.form-row > span { flex: 1; min-width: 0; word-break: break-all; line-height: 1.6; }
+.login-card .form-row > label { width: 48px; }
 
 /* 登录 */
 .login-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; gap: 60px; padding: 40px; background: linear-gradient(135deg, #1e3a8a, #2563eb 55%, #3b82f6); }
@@ -188,3 +190,10 @@ textarea.ipt { resize: vertical; font-family: inherit; width: 100%; min-width: 2
 .chat-with-side { display: flex; flex-direction: row; }
 .chat-body { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .chat-body .msgs { flex: 1; }
+
+/* ===== 组织页视觉对齐（M2 打磨） ===== */
+.org-grid { align-items: start; }
+.card-head-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.model-row { margin-bottom: 8px; }
+.model-row > label { color: var(--muted); }
+.model-row .mono { font-size: 12px; color: var(--ink-2); }

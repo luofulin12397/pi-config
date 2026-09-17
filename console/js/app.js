@@ -955,8 +955,10 @@
           </div>
           <div class="org-grid">
             <div class="card">
-              <h3>用户管理</h3>
-              <button v-if="hasBtn('user-manage')" class="btn primary sm" style="margin-bottom:10px" @click="startNewUser">＋ 新增用户</button>
+              <div class="card-head-row">
+                <h3>用户管理</h3>
+                <button v-if="hasBtn('user-manage')" class="btn primary sm" @click="startNewUser">＋ 新增用户</button>
+              </div>
               <table>
                 <thead><tr><th>姓名</th><th>账号</th><th>部门</th><th>状态</th><th>操作</th></tr></thead>
                 <tbody>
@@ -998,9 +1000,10 @@
             </div>
             <div class="card span2">
               <h3>模型服务配置（当前生效）</h3>
-              <div class="form-row"><label>对话模型</label><span class="mono">deepseek-v4-flash @ api.deepseek.com</span></div>
-              <div class="form-row"><label>Embedding</label><span class="mono">BAAI/bge-m3 @ 硅基流动 API</span></div>
-              <div class="form-row"><label>Reranker</label><span class="mono">BAAI/bge-reranker-v2-m3 @ 硅基流动 API</span></div>
+              <div class="form-row model-row"><label>对话模型</label><span class="mono">deepseek-v4-flash @ api.deepseek.com</span></div>
+              <div class="form-row model-row"><label>Embedding</label><span class="mono">BAAI/bge-m3 @ api.siliconflow.cn</span></div>
+              <div class="form-row model-row"><label>Reranker</label><span class="mono">BAAI/bge-reranker-v2-m3 @ api.siliconflow.cn</span></div>
+              <div class="form-row model-row"><label>视觉模型</label><span class="mono">deepseek-flash（图片摘要，失败自动降级）</span></div>
               <p class="muted">修改请在 .env 中调整后重启双服务（安全起见 API Key 不在页面展示）。</p>
             </div>
           </div>
