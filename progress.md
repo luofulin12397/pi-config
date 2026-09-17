@@ -140,3 +140,8 @@
 - 前端沉淀与运营页（审计/候选/已发布/缺口 4 tab + 挖掘按钮）
 - 演示数据：scripts/seed_qalogs.py（近 7 日日志注入）
 - 验证：test_m3_sediment.py 12/12（含挖掘生成候选→发布→直出→缺口→转任务→看板全链路）
+
+### 会话 4 续：M4 完成——全部里程碑收官
+- text_convert_service（TXT 编码回退直读 / DOCX python-docx 标题映射）+ entry_service 分支（转 MD 复用链路）
+- 验证：test_m4_formats.py 4/4（docx 切 2 片 / txt 切 1 片 / 默认拒绝 / 配 global 后可检索）
+- 至此需求 2.9 核心能力全部落地：四维权限问答（场景一 10/10）、FAQ 沉淀直出（场景二链路 12/12）、知识中心、审计、看板、多格式导入
