@@ -166,3 +166,20 @@ textarea.ipt { resize: vertical; font-family: inherit; width: 100%; min-width: 2
 .kpi-val small { font-size: 13px; color: var(--muted); font-weight: 400; }
 .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .chart { height: 250px; }
+
+/* ===== 会话侧栏 / 组织配置（M2-03/04） ===== */
+.chat-with-side { flex-direction: row; }
+.chat-side { width: 220px; flex: none; background: #fff; border-right: 1px solid var(--line); padding: 12px; overflow: auto; }
+.sess { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-top: 10px; cursor: pointer; }
+.sess:hover { border-color: var(--primary); }
+.sess.on { border-color: var(--primary); background: var(--primary-bg); }
+.sess-title { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sess-meta { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.org-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.org-grid .span2 { grid-column: span 2; }
+.pt-group { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+.pt-menu { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }
+.pt-btns { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 8px 0 0 26px; }
+.pt-btn { display: inline-flex; gap: 5px; align-items: center; font-size: 12px; color: var(--ink-2); cursor: pointer; }
+.mono { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+.tag.rejected { background: #f1f5f9; color: #94a3b8; border-color: #e2e8f0; }

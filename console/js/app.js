@@ -48,6 +48,12 @@
     busy: false,
     toastText: "",
     messages: [],
+    sessionId: null,
+    sessions: [],
+    org: {
+      users: [], roles: [], loading: false,
+      userEdit: null, roleEdit: null, roleCode: "common_user",
+    },
     ops: {
       tab: "candidates", loading: false,
       audit: [], candidates: [], published: [], gaps: [],
@@ -226,6 +232,54 @@
     });
   }
 
+  /* ---------- 会话历史（M2-03） ---------- */
+  function loadSessions() {
+    Api.request("GET", "/history?limit=200").then(function (d) {
+      var items = (d && d.items) || [];
+      var by = {};
+      items.forEach(function (it) {
+        if (!it.session_id) return;
+        var g = by[it.session_id] = by[it.session_id] || { id: it.session_id, msgs: [] };
+        g.msgs.push(it);
+      });
+      state.sessions = Object.keys(by).map(function (k) {
+        var g = by[k];
+        g.msgs.sort(function (a, b) { return (a.id || 0) - (b.id || 0); });
+        var firstUser = null;
+        for (var i = 0; i < g.msgs.length; i++) if (g.msgs[i].role === "user") { firstUser = g.msgs[i]; break; }
+        return {
+          id: k,
+          title: ((firstUser && firstUser.text) || g.msgs[0].text || "会话").slice(0, 14),
+          count: g.msgs.length,
+          messages: g.msgs.map(function (m) {
+            return { role: m.role === "user" ? "user" : "assistant", text: m.text || "" };
+          }),
+        };
+      }).sort(function (a, b) { return b.count - a.count; });
+    }).catch(function () {});
+  }
+
+  /* ---------- 组织与系统配置（M2-04） ---------- */
+  var MENU_DEFS = [
+    { key: "chat", label: "AI 问答工作台", buttons: [{ key: "ask", label: "发起提问" }] },
+    { key: "knowledge", label: "知识维护与导入", buttons: [{ key: "import", label: "文档导入" }, { key: "edit", label: "编辑知识" }, { key: "delete", label: "删除知识" }, { key: "perm", label: "权限配置" }] },
+    { key: "ops", label: "沉淀与运营", buttons: [{ key: "faq-publish", label: "FAQ 审核发布" }, { key: "cache-toggle", label: "缓存开关控制" }, { key: "gap-task", label: "缺口转建任务" }] },
+    { key: "dashboard", label: "运营看板", buttons: [] },
+    { key: "org", label: "组织与系统配置", buttons: [{ key: "user-manage", label: "用户管理" }, { key: "role-manage", label: "角色授权" }] },
+  ];
+
+  function loadOrg() {
+    state.org.loading = true;
+    Promise.all([
+      Api.request("GET", "/admin/users"),
+      Api.request("GET", "/auth/roles"),
+    ]).then(function (r) {
+      state.org.users = r[0] || [];
+      state.org.roles = (r[1] || []).map(function (x) { return { code: x.code || x.id, name: x.name }; });
+    }).catch(function (e) { window.__cs.toast(e.message); })
+      .then(function () { state.org.loading = false; });
+  }
+
   /* ---------- 根组件 ---------- */
   var App = {
     data: function () { return { s: state, draft: "" }; },
@@ -259,6 +313,7 @@
         if (tab === "knowledge") loadKnowledge();
         if (tab === "ops") this.loadOps();
         if (tab === "dashboard") this.loadDashboard();
+        if (tab === "org") loadOrg();
       },
       doLogin: function () {
         state.loginError = "";
@@ -268,6 +323,7 @@
             state.user = u;
             state.view = "console";
             state.tab = "chat";
+            loadSessions();
           });
         }).catch(function (e) { state.loginError = e.message || "登录失败"; });
       },
@@ -286,7 +342,8 @@
         var msg = reactive({ role: "assistant", text: "", steps: null, refs: null, deniedCount: 0, meta: null, streaming: false });
         state.messages.push(msg);
         nextTick(); this.scrollBottom();
-        var sessionId = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : "s-" + Date.now();
+        var sessionId = state.sessionId || ((window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : "s-" + Date.now());
+        state.sessionId = sessionId;
         var self = this;
         startStream(sessionId, msg, function () { state.busy = false; self.scrollBottom(); })
           .then(function () { return Api.queryStream(q, sessionId); })
@@ -302,6 +359,89 @@
           var el = document.querySelector(".msgs");
           if (el) el.scrollTop = el.scrollHeight;
         });
+      },
+      newSession: function () {
+        state.sessionId = null;
+        state.messages = [];
+        state.busy = false;
+      },
+      openSession: function (sess) {
+        state.sessionId = sess.id;
+        state.messages = sess.messages.map(function (m) {
+          return reactive({ role: m.role, text: m.text, steps: null, refs: null, deniedCount: 0, meta: null, streaming: false });
+        });
+        state.busy = false;
+      },
+      loadSessionsWrap: function () { loadSessions(); },
+      loadOrg: function () { loadOrg(); },
+      startEditUser: function (u) {
+        state.org.userEdit = {
+          id: u.id, username: u.username, display_name: u.name,
+          department_id: u.departmentId, role_codes: (u.roleCodes || []).slice(),
+          enabled: u.enabled, password: "",
+        };
+      },
+      startNewUser: function () {
+        state.org.userEdit = { id: null, username: "", display_name: "", department_id: "", role_codes: ["common_user"], enabled: true, password: "" };
+      },
+      saveUser: function () {
+        var f = state.org.userEdit;
+        var p = f.id
+          ? Api.request("PUT", "/admin/users/" + f.id, {
+              display_name: f.display_name, department_id: f.department_id,
+              enabled: f.enabled, role_codes: f.role_codes,
+              password: f.password || undefined,
+            })
+          : Api.request("POST", "/admin/users", {
+              username: f.username, password: f.password, display_name: f.display_name,
+              department_id: f.department_id, enabled: f.enabled, role_codes: f.role_codes,
+            });
+        p.then(function () {
+          state.org.userEdit = null;
+          window.__cs.toast("已保存");
+          loadOrg();
+        }).catch(function (e) { window.__cs.toast(e.message); });
+      },
+      toggleUserEnabled: function (u) {
+        Api.request("PUT", "/admin/users/" + u.id, { enabled: !u.enabled })
+          .then(function () { u.enabled = !u.enabled; window.__cs.toast(u.enabled ? "已启用" : "已禁用"); });
+      },
+      resetPwd: function (u) {
+        var p = prompt("为「" + u.name + "」设置新密码：");
+        if (!p) return;
+        Api.request("PUT", "/admin/users/" + u.id, { password: p })
+          .then(function () { window.__cs.toast("密码已重置"); });
+      },
+      delUser: function (u) {
+        if (!confirm("确认删除用户「" + u.name + "」？")) return;
+        Api.request("DELETE", "/admin/users/" + u.id)
+          .then(function () { window.__cs.toast("已删除"); loadOrg(); });
+      },
+      startRoleEdit: function (code) {
+        state.org.roleCode = code;
+        var role = null;
+        state.org.roles.forEach(function (r) { if (r.code === code) role = r; });
+        var perms = { menus: [], buttons: [] };
+        Api.request("GET", "/admin/roles/" + code + "/perms").then(function (d) {
+          perms = d;
+        }).catch(function () {}).then(function () {
+          state.org.roleEdit = { code: code, menus: (perms.menus || []).slice(), buttons: (perms.buttons || []).slice() };
+        });
+      },
+      toggleRoleMenu: function (key) {
+        var f = state.org.roleEdit;
+        var i = f.menus.indexOf(key);
+        if (i >= 0) f.menus.splice(i, 1); else f.menus.push(key);
+      },
+      toggleRoleButton: function (key) {
+        var f = state.org.roleEdit;
+        var i = f.buttons.indexOf(key);
+        if (i >= 0) f.buttons.splice(i, 1); else f.buttons.push(key);
+      },
+      saveRole: function () {
+        var f = state.org.roleEdit;
+        Api.request("PUT", "/admin/roles/" + f.code, { menus: f.menus, buttons: f.buttons })
+          .then(function () { window.__cs.toast("角色权限已保存并即时生效"); });
       },
       onImportFiles: function (e) {
         importFiles(e.target.files);
@@ -333,7 +473,8 @@
       openPerm: function (u) { openPerm(u); },
       toggleArr: function (list, v) { toggleIn(list, v); },
       savePerm: function () { savePermCurrent(); },
-      hasMenuX: function (k) { return hasMenu(k); },
+      hasMenu: function (k) { return hasMenu(k); },
+      menuDefs: MENU_DEFS,
       loadOps: function () {
         var self = this;
         state.ops.loading = true;
@@ -456,6 +597,7 @@
         Api.me().then(function (u) {
           state.user = u;
           state.view = "console";
+          loadSessions();
         }).catch(function () { Api.clearToken(); });
       }
     },
@@ -499,7 +641,16 @@
           </div>
         </aside>
 
-        <div v-if="s.tab === 'chat'" class="chat-main">
+        <div v-if="s.tab === 'chat'" class="chat-main chat-with-side">
+          <aside class="chat-side">
+            <button class="btn primary block" @click="newSession">＋ 新建会话</button>
+            <div v-for="sess in s.sessions" :key="sess.id" class="sess" :class="{on: s.sessionId === sess.id}" @click="openSession(sess)">
+              <div class="sess-title">{{ sess.title }}</div>
+              <div class="sess-meta"><span>{{ sess.count }} 条</span></div>
+            </div>
+            <p class="muted" v-if="!s.sessions.length" style="margin-top:10px">暂无历史会话</p>
+            <a class="link" style="margin-top:8px;display:inline-block" @click="loadSessions()">刷新</a>
+          </aside>
           <div class="msgs" ref="msgs">
             <div v-if="s.messages.length === 0" class="chat-welcome">
               <h2>👋 你好，{{ s.user.display_name }}</h2>
@@ -789,6 +940,86 @@
             <div class="card"><h3>高频问题 TOP5</h3><div class="chart" id="chart-tq"></div></div>
             <div class="card"><h3>高频引用知识 TOP5</h3><div class="chart" id="chart-tk"></div></div>
             <div class="card"><h3>响应延时分布（RAG）</h3><div class="chart" id="chart-lat"></div></div>
+          </div>
+        </div>
+
+
+        <!-- ===== 组织与系统配置（M2-04） ===== -->
+        <div v-else-if="s.tab === 'org'" class="page">
+          <div class="page-head"><h2>组织与系统配置</h2>
+            <button class="btn" @click="loadOrg(); loadSessions()">↻ 刷新</button>
+          </div>
+          <div class="org-grid">
+            <div class="card">
+              <h3>用户管理</h3>
+              <button v-if="hasBtn('user-manage')" class="btn primary sm" style="margin-bottom:10px" @click="startNewUser">＋ 新增用户</button>
+              <table>
+                <thead><tr><th>姓名</th><th>账号</th><th>部门</th><th>状态</th><th>操作</th></tr></thead>
+                <tbody>
+                  <tr v-for="u in s.org.users" :key="u.id">
+                    <td class="strong">{{ u.name }}</td>
+                    <td class="mono">{{ u.username }}</td>
+                    <td>{{ u.departmentId || '—' }}</td>
+                    <td><span class="tag" :class="u.status === 'disabled' ? 'rejected' : ''">{{ u.status === 'disabled' ? '已禁用' : '正常' }}</span></td>
+                    <td class="ops">
+                      <a v-if="hasBtn('user-manage')" class="link" @click="startEditUser(u)">编辑</a>
+                      <a v-if="hasBtn('user-manage')" class="link" @click="resetPwd(u)">重置密码</a>
+                      <a v-if="hasBtn('user-manage') && u.id !== s.user.id" class="link danger" @click="delUser(u)">删除</a>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="card">
+              <h3>角色功能权限</h3>
+              <div class="form-row"><label>角色</label>
+                <select class="ipt" style="width:auto" v-model="s.org.roleCode" @change="startRoleEdit(s.org.roleCode)">
+                  <option v-for="r in s.org.roles" :key="r.code" :value="r.code">{{ r.name }}（{{ r.code }}）</option>
+                </select>
+              </div>
+              <div v-if="s.org.roleEdit">
+                <div v-for="m in menuDefs" :key="m.key" class="pt-group">
+                  <label class="pt-menu"><b>{{ m.label }}</b> <span class="muted">（菜单）</span>
+                    <input type="checkbox" style="margin-left:6px" :checked="s.org.roleEdit.menus.indexOf(m.key) >= 0" @change="toggleRoleMenu(m.key)" />
+                  </label>
+                  <div class="pt-btns">
+                    <label v-for="b in m.buttons" :key="b.key" class="pt-btn">
+                      <input type="checkbox" :disabled="s.org.roleEdit.menus.indexOf(m.key) < 0" :checked="s.org.roleEdit.buttons.indexOf(b.key) >= 0" @change="toggleRoleButton(b.key)" /> {{ b.label }}
+                    </label>
+                  </div>
+                </div>
+                <button v-if="hasBtn('role-manage')" class="btn primary sm" @click="saveRole">保存角色权限</button>
+                <p class="muted">保存后该角色用户重新登录即生效。</p>
+              </div>
+            </div>
+            <div class="card span2">
+              <h3>模型服务配置（当前生效）</h3>
+              <div class="form-row"><label>对话模型</label><span class="mono">deepseek-v4-flash @ api.deepseek.com</span></div>
+              <div class="form-row"><label>Embedding</label><span class="mono">BAAI/bge-m3 @ 硅基流动 API</span></div>
+              <div class="form-row"><label>Reranker</label><span class="mono">BAAI/bge-reranker-v2-m3 @ 硅基流动 API</span></div>
+              <p class="muted">修改请在 .env 中调整后重启双服务（安全起见 API Key 不在页面展示）。</p>
+            </div>
+          </div>
+
+          <div v-if="s.org.userEdit" class="modal-mask" @click.self="s.org.userEdit = null">
+            <div class="modal">
+              <div class="modal-head"><h3>{{ s.org.userEdit.id ? '编辑用户' : '新增用户' }}</h3><a class="x" @click="s.org.userEdit = null">✕</a></div>
+              <div class="form-row"><label>账号</label><input class="ipt" v-model="s.org.userEdit.username" :disabled="!!s.org.userEdit.id" /></div>
+              <div class="form-row"><label>姓名</label><input class="ipt" v-model="s.org.userEdit.display_name" /></div>
+              <div class="form-row" v-if="!s.org.userEdit.id"><label>初始密码</label><input class="ipt" v-model="s.org.userEdit.password" /></div>
+              <div class="form-row"><label>重置密码</label><input class="ipt" v-if="s.org.userEdit.id" v-model="s.org.userEdit.password" /><span v-else class="muted">（见上）</span></div>
+              <div class="form-row"><label>部门</label><input class="ipt" v-model="s.org.userEdit.department_id" placeholder="如 dept-biz" /></div>
+              <div class="form-row"><label>角色</label>
+                <label v-for="r in s.org.roles" :key="r.code" class="check-row inline">
+                  <input type="checkbox" :value="r.code" v-model="s.org.userEdit.role_codes" /> {{ r.name }}
+                </label>
+              </div>
+              <div class="form-row"><label>启用</label><input type="checkbox" v-model="s.org.userEdit.enabled" /></div>
+              <div class="modal-foot">
+                <button class="btn" @click="s.org.userEdit = null">取消</button>
+                <button class="btn primary" @click="saveUser">保存</button>
+              </div>
+            </div>
           </div>
         </div>
 

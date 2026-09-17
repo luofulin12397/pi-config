@@ -10,15 +10,18 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app.api.schema.auth_schema import ApiResponse
+from app.infra.persistence.auth_repository import auth_repository
 from app.infra.persistence.knowledge_repository import knowledge_repository
 from app.infra.persistence.permission_repository import permission_repository
 from app.infra.security.perm_engine import has_access, normalize_perms
+from app.infra.persistence.auth_repository import auth_repository
 from app.infra.persistence.auth_repository import auth_repository
 from app.infra.persistence.knowledge_repository import knowledge_repository
 from app.infra.persistence.qa_cache_repository import qa_cache_repository
 from app.infra.persistence.faq_repository import faq_repository
 from app.infra.persistence.gap_repository import gap_repository
 from app.infra.persistence.qa_log_repository import qa_log_repository
+from app.infra.persistence.auth_repository import auth_repository
 from app.infra.persistence.knowledge_repository import knowledge_repository
 from app.shared.clients.mongo_auth_utils import get_auth_mongo_tool
 from app.infra.security.deps import CurrentUser, get_current_user, require_admin, require_button
@@ -205,23 +208,32 @@ def list_departments(_: CurrentUser = Depends(require_button("perm"))):
 
 @admin_router.get("/users")
 def list_console_users(_: CurrentUser = Depends(require_button("perm"))):
-    """用户轻量列表（权限弹窗的个人维选择数据源）。"""
+    """用户列表（组织页表格 + 权限弹窗数据源，M2-04）。"""
     users = _users_overview()
     return ApiResponse(data=[{
-        "id": u["id"], "name": u["name"], "username": u["username"], "departmentId": u["department_id"],
+        "id": u["id"], "name": u["name"], "username": u["username"],
+        "departmentId": u["department_id"], "status": u["status"],
+        "enabled": u["enabled"], "roleCodes": u["roleCodes"],
     } for u in users])
 
 
 def _users_overview() -> list[dict]:
-    """内部工具：聚合用户档案（id/name/username/department_id）。"""
-    return [{
-        "id": str(u["_id"]),
-        "name": u.get("display_name") or u.get("username", ""),
-        "username": u.get("username", ""),
-        "department_id": u.get("department_id", ""),
-    } for u in get_auth_mongo_tool().users.find(
-        {}, {"_id": 1, "username": 1, "display_name": 1, "department_id": 1}
-    )]
+    """内部工具：聚合用户档案（含状态与角色 codes）。"""
+    tool = get_auth_mongo_tool()
+    out = []
+    for u in tool.users.find({}, {"_id": 1, "username": 1, "display_name": 1, "department_id": 1, "status": 1}):
+        uid = str(u["_id"])
+        out.append({
+            "id": uid,
+            "name": u.get("display_name") or u.get("username", ""),
+            "username": u.get("username", ""),
+            "department_id": u.get("department_id", ""),
+            "departmentId": u.get("department_id", ""),
+            "status": u.get("status", "active"),
+            "enabled": u.get("status", "active") != "disabled",
+            "roleCodes": auth_repository.list_user_role_codes(uid),
+        })
+    return out
 
 
 # ==================== 导入代理（前端单端口：:55001 → :55000，M2-02） ====================
@@ -253,6 +265,11 @@ def proxy_import_status(task_id: str, request: Request, _: CurrentUser = Depends
     auth = request.headers.get("authorization", "")
     r = httpx.get(f"{_IMPORT_BASE}/status/{task_id}", headers={"Authorization": auth}, timeout=30)
     return JSONResponse(status_code=r.status_code, content=r.json())
+
+
+def _now():
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc)
 
 
 # ==================== 审计查询与 FAQ 沉淀运营（M3-01/02） ====================
@@ -398,3 +415,109 @@ def convert_gap(
 def dashboard_overview(days: int = 7, _: CurrentUser = Depends(get_current_user)):
     from app.rag.sediment.dashboard_service import overview
     return ApiResponse(data=overview(days=days))
+
+
+# ==================== 组织与系统配置（M2-04） ====================
+
+def _bind_user_roles(user_oid, role_codes: list[str]):
+    tool = get_auth_mongo_tool()
+    known = {r["code"] for r in tool.roles.find({}, {"code": 1})}
+    codes = [c for c in (role_codes or []) if c in known]
+    tool.user_roles.delete_many({"user_id": user_oid})
+    for code in codes:
+        tool.user_roles.insert_one({"user_id": user_oid, "role_code": code, "created_at": _now()})
+    return codes
+
+
+@admin_router.post("/users")
+def create_user(body: dict, _: CurrentUser = Depends(require_button("user-manage"))):
+    username = (body.get("username") or "").strip()
+    password = body.get("password") or ""
+    if not username or not password:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="username/password 不能为空")
+    tool = get_auth_mongo_tool()
+    if tool.users.find_one({"username": username}):
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="账号已存在")
+    from app.infra.security.password_utils import hash_password
+    uid = tool.users.insert_one({
+        "username": username,
+        "password_hash": hash_password(password),
+        "display_name": body.get("display_name") or username,
+        "department_id": body.get("department_id", ""),
+        "status": "active" if body.get("enabled", True) else "disabled",
+        "created_at": _now(),
+    }).inserted_id
+    codes = _bind_user_roles(uid, body.get("role_codes") or [])
+    return ApiResponse(data={"id": str(uid), "username": username, "role_codes": codes})
+
+
+@admin_router.put("/users/{user_id}")
+def update_user(user_id: str, body: dict, _: CurrentUser = Depends(require_button("user-manage"))):
+    from bson import ObjectId
+    from app.infra.security.password_utils import hash_password
+    try:
+        oid = ObjectId(user_id)
+    except Exception:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="user_id 非法")
+    patch = {}
+    for k in ("display_name", "department_id"):
+        if body.get(k) is not None:
+            patch[k] = body[k]
+    if body.get("enabled") is not None:
+        patch["status"] = "active" if body["enabled"] else "disabled"
+    if body.get("password"):
+        patch["password_hash"] = hash_password(body["password"])
+    if patch:
+        get_auth_mongo_tool().users.update_one({"_id": oid}, {"$set": patch})
+    if "role_codes" in body:
+        _bind_user_roles(oid, body["role_codes"])
+    return ApiResponse(data={"id": user_id, "updated": True})
+
+
+@admin_router.delete("/users/{user_id}")
+def delete_user(user_id: str, current_user: CurrentUser = Depends(require_button("user-manage"))):
+    if user_id == current_user.id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="不能删除当前登录账号")
+    from bson import ObjectId
+    try:
+        oid = ObjectId(user_id)
+    except Exception:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="user_id 非法")
+    tool = get_auth_mongo_tool()
+    n = tool.users.delete_one({"_id": oid}).deleted_count
+    tool.user_roles.delete_many({"user_id": oid})
+    if not n:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="用户不存在")
+    return ApiResponse(data={"id": user_id})
+
+
+@admin_router.get("/roles/{code}/perms")
+def get_role_perms(code: str, _: CurrentUser = Depends(require_button("role-manage"))):
+    from app.infra.security.role_utils import DEFAULT_ROLE_PERMS
+    doc = get_auth_mongo_tool().roles.find_one({"code": code}, {"_id": 0, "menus": 1, "buttons": 1})
+    if not doc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="角色不存在")
+    defaults = DEFAULT_ROLE_PERMS.get(code, {"menus": [], "buttons": []})
+    return ApiResponse(data={
+        "code": code,
+        "menus": doc.get("menus") if doc.get("menus") is not None else defaults["menus"],
+        "buttons": doc.get("buttons") if doc.get("buttons") is not None else defaults["buttons"],
+    })
+
+
+@admin_router.put("/roles/{code}")
+def update_role_perms(
+    code: str,
+    body: dict,
+    _: CurrentUser = Depends(require_button("role-manage")),
+):
+    """更新角色的菜单/按钮权限（功能权限模型，M1-04）。"""
+    patch = {}
+    if "menus" in body:
+        patch["menus"] = body["menus"]
+    if "buttons" in body:
+        patch["buttons"] = body["buttons"]
+    if not patch:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="无可更新字段")
+    n = get_auth_mongo_tool().roles.update_one({"code": code}, {"$set": patch}).modified_count
+    return ApiResponse(data={"code": code, "updated": bool(n)})
