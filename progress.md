@@ -128,3 +128,8 @@
 - 修复：/query 响应补 source 字段 + audit_source 作用域 NameError
 - 接口规范：ops 接口独立 /ops 前缀 router（契约路径对齐）
 - 验证：scripts/test_m3_sediment.py 8/8（首轮 RAG→建候选→发布→同义直出→hitCount→审计双来源）
+
+### 暂停点（等用户体验后继续）
+- **下一步**：M3-03 挖掘服务+缺口池 → M3-04 看板 → 前端「沉淀与运营」页（审计/FAQ 候选/已发布三 tab，接口已全部就绪）+ 看板页
+- 用户正在浏览器体验控制台（http://<host>:55001/console/），体验中提出的交互调整在继续时一并收集处理
+- 服务均在运行：docker 4 容器 + 双服务（55000/55001）；控制台入口 /console/
