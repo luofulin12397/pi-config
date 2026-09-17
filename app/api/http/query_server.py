@@ -32,6 +32,7 @@ from app.shared.utils.task_utils import (
 )
 
 from app.infra.persistence.history_repository import history_repository
+from app.infra.persistence.qa_log_repository import qa_log_repository
 
 # 定义fastapi对象
 app = FastAPI(
@@ -57,8 +58,9 @@ if _CONSOLE_DIR.exists():
     @app.get("/console")
     def _console_redirect():
         return RedirectResponse("/console/")
-from app.api.http.admin_routes import admin_router  # noqa: E402  (M1-02 知识单元台账)
+from app.api.http.admin_routes import admin_router, ops_router  # noqa: E402  (M1-02 知识单元台账)
 app.include_router(admin_router)
+app.include_router(ops_router)
 
 
 @app.on_event("startup")
@@ -143,6 +145,7 @@ def invoke_query_graph(session_id:str,query:str,is_stream:bool=False,user_id:str
         create_sse_queue(session_id)
 
     started_at = time.time()
+    audit_source = "rag"  # 默认；管线完成后按实际来源覆盖（异常路径兜底）
     try:
         update_task_status(session_id,TASK_STATUS_PROCESSING,is_stream)
         logger.info(f"开始执行,执行参数为:{state}")
@@ -153,7 +156,9 @@ def invoke_query_graph(session_id:str,query:str,is_stream:bool=False,user_id:str
         # M1-06：done 事件（来源/耗时/token 估算）
         latency_ms = int((time.time() - started_at) * 1000)
         answer_text = result_state.get("answer") or ""
-        if result_state.get("cache_hit"):
+        if result_state.get("hit_kind") == "faq":
+            source = "faq-cache"
+        elif result_state.get("cache_hit"):
             source = "semantic-cache"
         elif result_state.get("denied_knowledge_ids") and not result_state.get("allowed_knowledge_ids"):
             source = "denied"
@@ -161,6 +166,7 @@ def invoke_query_graph(session_id:str,query:str,is_stream:bool=False,user_id:str
             source = "no-result"
         else:
             source = "rag"
+        result_state["source"] = source
         push_to_session(session_id, SSEEvent.DONE, {
             "source": source,
             "latency": latency_ms,
@@ -179,6 +185,22 @@ def invoke_query_graph(session_id:str,query:str,is_stream:bool=False,user_id:str
                     "cache_hit": result_state.get("cache_hit", False),
                 }
             )
+        # M3-01：问答审计落库（需求 2.9.8；异步语义——毫秒级单条 insert，不额外开线程）
+        try:
+            answer_text = result_state.get("answer") or ""
+            qa_log_repository.insert({
+                "session_id": session_id,
+                "user_id": state.get("user_id", ""),
+                "question": state.get("original_query", ""),
+                "source": audit_source,
+                "allowed_ids": result_state.get("allowed_knowledge_ids", []),
+                "denied_ids": result_state.get("denied_knowledge_ids", []),
+                "tokens": int(len(answer_text) / 1.6),
+                "latency": int((time.time() - started_at) * 1000),
+            })
+        except Exception:
+            logger.exception("问答审计落库失败（不影响问答结果）")
+
         # 返回结果! 非流式需要
         return result_state
     except Exception as e:
@@ -246,6 +268,7 @@ def query(
             cache_hit=bool(final_state.get("cache_hit")) if final_state else False,
             allowed_ids=final_state.get("allowed_knowledge_ids", []) if final_state else [],
             denied_ids=final_state.get("denied_knowledge_ids", []) if final_state else [],
+            source=final_state.get("source", "rag") if final_state else "",
         )
 
 

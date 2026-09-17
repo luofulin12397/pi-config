@@ -21,6 +21,7 @@ class QueryNotStreamResponse(BaseModel):
     cache_hit: bool = False
     allowed_ids: list = []   # 鉴权放行的知识单元（审计）
     denied_ids: list = []    # 鉴权拦截的知识单元（审计）
+    source: str = ""         # 来源：faq-cache / semantic-cache / rag / denied / no-result
 
 # 清空历史记录响应的结构
 class HistoryCleanResponse(BaseModel):

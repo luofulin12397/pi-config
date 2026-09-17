@@ -43,6 +43,7 @@ class QueryGraphState(TypedDict):
     allowed_knowledge_ids: List[str]  # 鉴权放行的知识单元（审计/前端）
     denied_knowledge_ids: List[str]   # 鉴权拦截的知识单元（审计/前端，绝不进提示词）
     skip_cache: bool              # True 时 node_save_cache 跳过写入
+    hit_kind: str                 # 命中类型：faq / semantic（缓存短路时）
 
 # ========================
 # 默认状态（全部为空）
@@ -74,6 +75,7 @@ query_graph_default_state: QueryGraphState = {
     "allowed_knowledge_ids": [],
     "denied_knowledge_ids": [],
     "skip_cache": False,
+    "hit_kind": "",
 }
 
 

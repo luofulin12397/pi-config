@@ -16,8 +16,10 @@ from app.infra.security.perm_engine import has_access, normalize_perms
 from app.infra.persistence.auth_repository import auth_repository
 from app.infra.persistence.knowledge_repository import knowledge_repository
 from app.infra.persistence.qa_cache_repository import qa_cache_repository
+from app.infra.persistence.faq_repository import faq_repository
+from app.infra.persistence.qa_log_repository import qa_log_repository
 from app.shared.clients.mongo_auth_utils import get_auth_mongo_tool
-from app.infra.security.deps import CurrentUser, require_admin, require_button
+from app.infra.security.deps import CurrentUser, get_current_user, require_admin, require_button
 from app.rag.import_.index_service import remove_old_chunks
 
 admin_router = APIRouter(prefix="/admin", tags=["admin"])
@@ -249,3 +251,92 @@ def proxy_import_status(task_id: str, request: Request, _: CurrentUser = Depends
     auth = request.headers.get("authorization", "")
     r = httpx.get(f"{_IMPORT_BASE}/status/{task_id}", headers={"Authorization": auth}, timeout=30)
     return JSONResponse(status_code=r.status_code, content=r.json())
+
+
+# ==================== 审计查询与 FAQ 沉淀运营（M3-01/02） ====================
+
+ops_router = APIRouter(prefix="/ops", tags=["ops"])
+
+@ops_router.get("/audit/logs")
+def list_audit_logs(
+    limit: int = 50,
+    _: CurrentUser = Depends(require_button("perm")),
+):
+    """问答审计日志倒序（需求 2.9.8 输出格式；挖掘/缺口/看板共用同一数据源）。"""
+    logs = qa_log_repository.list_desc(limit=limit)
+    for log in logs:
+        if isinstance(log.get("ts"), datetime):
+            log["ts"] = log["ts"].isoformat()
+        log["question"] = log.get("question", "")
+        log["allowedLabels"] = [k for k in log.get("allowed_ids", [])]
+        log["deniedLabels"] = [k for k in log.get("denied_ids", [])]
+    return ApiResponse(data=logs)
+
+
+# ==================== FAQ 沉淀运营（M3-02） ====================
+
+@ops_router.get("/faq/candidates")
+def list_faq_candidates(_: CurrentUser = Depends(get_current_user)):
+    return ApiResponse(data=faq_repository.list_candidates())
+
+
+@ops_router.post("/faq/candidates")
+def add_faq_candidate(
+    body: dict,
+    _: CurrentUser = Depends(require_button("faq-publish")),
+):
+    """手动添加候选 FAQ（自动挖掘见 M3-03）。"""
+    question = (body.get("question") or "").strip()
+    if not question:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="question 不能为空")
+    cid = faq_repository.add_candidate(question=question, answer=body.get("answer", ""))
+    return ApiResponse(data=faq_repository.get_candidate(cid))
+
+
+@ops_router.post("/faq/candidates/{candidate_id}/publish")
+def publish_faq_candidate(
+    candidate_id: str,
+    body: dict,
+    _: CurrentUser = Depends(require_button("faq-publish")),
+):
+    """审核发布：候选 → 已发布并写入高速缓存。"""
+    question = (body.get("question") or "").strip()
+    answer = (body.get("answer") or "").strip()
+    if not question or not answer:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="question/answer 不能为空")
+    fid = faq_repository.publish(candidate_id=candidate_id, question=question, answer=answer)
+    return ApiResponse(data=faq_repository.get_published(fid))
+
+
+@ops_router.post("/faq/candidates/{candidate_id}/reject")
+def reject_faq_candidate(candidate_id: str, _: CurrentUser = Depends(require_button("faq-publish"))):
+    n = faq_repository.reject_candidate(candidate_id)
+    if not n:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="候选不存在")
+    return ApiResponse(data={"id": candidate_id, "status": "rejected"})
+
+
+@ops_router.get("/faqs")
+def list_published_faqs(_: CurrentUser = Depends(get_current_user)):
+    return ApiResponse(data=faq_repository.list_published())
+
+
+@ops_router.put("/faqs/{faq_id}/cache")
+def toggle_faq_cache(
+    faq_id: str,
+    body: dict,
+    _: CurrentUser = Depends(require_button("cache-toggle")),
+):
+    n = faq_repository.toggle_cache(faq_id, bool(body.get("enabled")))
+    if not n:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="FAQ 不存在")
+    return ApiResponse(data=faq_repository.get_published(faq_id))
+
+
+@ops_router.delete("/faqs/{faq_id}")
+def delete_faq(faq_id: str, _: CurrentUser = Depends(require_button("faq-publish"))):
+    n = faq_repository.delete_published(faq_id)
+    if not n:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="FAQ 不存在")
+    return ApiResponse(data={"id": faq_id})
+
