@@ -145,3 +145,9 @@
 - text_convert_service（TXT 编码回退直读 / DOCX python-docx 标题映射）+ entry_service 分支（转 MD 复用链路）
 - 验证：test_m4_formats.py 4/4（docx 切 2 片 / txt 切 1 片 / 默认拒绝 / 配 global 后可检索）
 - 至此需求 2.9 核心能力全部落地：四维权限问答（场景一 10/10）、FAQ 沉淀直出（场景二链路 12/12）、知识中心、审计、看板、多格式导入
+
+### 会话 4 续：部署文档 + 场景二演示脚本 + M2 打磨
+- docs/deployment.md：快速启动/账号/演示路径/验收脚本清单/常见问题
+- scripts/demo_scenario2.py：场景二一键演示（导入→高频提问→挖掘→发布→134ms 直出→缺口闭环），已跑通
+- M2 打磨：知识中心拖拽导入 + 导入进度映射四阶段（节点名→清洗/分块/向量化/入库）
+- 遗留：会话侧栏（GET /history 分组，下一票）
