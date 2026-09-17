@@ -651,6 +651,7 @@
             <p class="muted" v-if="!s.sessions.length" style="margin-top:10px">暂无历史会话</p>
             <a class="link" style="margin-top:8px;display:inline-block" @click="loadSessions()">刷新</a>
           </aside>
+          <div class="chat-body">
           <div class="msgs" ref="msgs">
             <div v-if="s.messages.length === 0" class="chat-welcome">
               <h2>👋 你好，{{ s.user.display_name }}</h2>
@@ -694,6 +695,7 @@
               <textarea v-model="draftProxy" rows="2" placeholder="输入业务问题，Enter 发送…" @keydown.enter.exact.prevent="send"></textarea>
               <button class="btn primary" :disabled="busy || !draft.trim()" @click="send">{{ busy ? '回答中…' : '发送' }}</button>
             </div>
+          </div>
           </div>
         </div>
 

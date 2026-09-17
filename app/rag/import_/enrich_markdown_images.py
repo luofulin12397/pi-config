@@ -285,9 +285,19 @@ def enrich_markdown_images(state: ImportGraphState) -> ImportGraphState:
     # List[tuple[str,str,tuple[str,str]]] [(图片名.jpg,图片完整地址,(上文,下文))]
     images_context : List[tuple[str,str,tuple[str,str]]] = scan_images(md_content,image_path_obj)
 
-    # 4. 使用视觉模型对图片进行意图识别
-    # {图片的.png : 描述 }
-    images_summary_dict =  summarize_images(images_context, md_path_obj.stem)
+    # 4. 使用视觉模型对图片进行意图识别（M4：视觉模型不可用时降级——图片原样保留，导入不阻断）
+    try:
+        images_summary_dict = summarize_images(images_context, md_path_obj.stem)
+    except Exception:
+        logger.exception("图片摘要失败（视觉模型不可用？），降级为仅上传图片原样引用")
+        try:
+            md_content_new = upload_images_and_replace(images_context, {}, md_content, md_path_obj.stem)
+            new_md_path_str = back_up_new_md_content(md_content_new, md_path_obj)
+            state['md_content'] = md_content_new
+            state['md_path'] = new_md_path_str
+        except Exception:
+            logger.exception("图片上传亦失败，使用原始 md 继续后续切片流程")
+        return state
 
     # 5. 上传图片并且替换md_content
     md_content_new = upload_images_and_replace(images_context,images_summary_dict, md_content, md_path_obj.stem)

@@ -183,3 +183,8 @@ textarea.ipt { resize: vertical; font-family: inherit; width: 100%; min-width: 2
 .pt-btn { display: inline-flex; gap: 5px; align-items: center; font-size: 12px; color: var(--ink-2); cursor: pointer; }
 .mono { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
 .tag.rejected { background: #f1f5f9; color: #94a3b8; border-color: #e2e8f0; }
+
+/* ===== 会话侧栏布局（M2 打磨修复） ===== */
+.chat-with-side { display: flex; flex-direction: row; }
+.chat-body { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.chat-body .msgs { flex: 1; }
