@@ -75,3 +75,12 @@
 - **SSE step 事件协议**为最大新增机制：demo 管线步骤条线上化（step/delta/refs/done 四类事件），需给 LangGraph 节点加回调
 - **核心改造点只有一处**：node_access_control 从"商品主体名预过滤"改为"召回后四维过滤"（契约 §4）
 - 新增集合 6 个：departments / knowledge_units / faqs(+candidates) / gaps / qa_logs / settings
+
+## 8. 视觉模型与图片增强（M4 补充）
+
+- **DeepSeek 系列支持视觉输入（实测）**：`deepseek-chat` 能准确描述手册插图（界面截图、安全警告图、条码图）；`deepseek-flash` / `deepseek-v4-flash` 为推理模型，返回 `reasoning_content`，短 `max_tokens` 时 `content` 为空
+- 配置：`VL_MODEL=deepseek-chat` + `IMAGE_ENHANCE_ENABLED=true`（.env）
+- 图片处理链路：MinerU 转 MD → 逐图调 VL 模型生成描述（约 1.5s/图）→ 上传 MinIO → MD 中图片替换为 `![描述](url)` → 描述文本进入切片，**图片内容可被检索**
+- 开关语义：`IMAGE_ENHANCE_ENABLED=false` 或视觉调用异常 → 降级（图片原样上传、无描述），导入不阻断
+- 批量导入：`scripts/batch_import_docs.py --dir doc --batch 3 --grant-global`（doc/ 共 85 份 PDF；单份约 3-4 分钟含图片摘要）
+- 已知失败样本：`CS2610DNW_Manuals_ALL_20240423095554.pdf`（MinerU 侧解析失败，可稍后重试）
