@@ -3,7 +3,7 @@
 管理端路由（:55001）。M1-02 知识单元台账。
 RBAC：全部挂 require_admin（M1-04 完成菜单/按钮级展开后再细化到按钮权限）。
 """
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import JSONResponse
@@ -17,7 +17,9 @@ from app.infra.persistence.auth_repository import auth_repository
 from app.infra.persistence.knowledge_repository import knowledge_repository
 from app.infra.persistence.qa_cache_repository import qa_cache_repository
 from app.infra.persistence.faq_repository import faq_repository
+from app.infra.persistence.gap_repository import gap_repository
 from app.infra.persistence.qa_log_repository import qa_log_repository
+from app.infra.persistence.knowledge_repository import knowledge_repository
 from app.shared.clients.mongo_auth_utils import get_auth_mongo_tool
 from app.infra.security.deps import CurrentUser, get_current_user, require_admin, require_button
 from app.rag.import_.index_service import remove_old_chunks
@@ -340,3 +342,59 @@ def delete_faq(faq_id: str, _: CurrentUser = Depends(require_button("faq-publish
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="FAQ 不存在")
     return ApiResponse(data={"id": faq_id})
 
+
+
+# ==================== 挖掘 / 缺口 / 看板（M3-03/04） ====================
+
+@admin_router.post("/mining/run")
+def run_mining_api(
+    body: dict | None = None,
+    _: CurrentUser = Depends(require_button("faq-publish")),
+):
+    """触发挖掘：聚合近 N 天问答日志聚类生成候选 FAQ + 同步知识缺口池。"""
+    from app.rag.sediment.mining_service import run_mining, sync_gaps
+    body = body or {}
+    days = int(body.get("days") or 7)
+    threshold = body.get("threshold")
+    mining = run_mining(days=days, threshold=int(threshold) if threshold else None)
+    gaps = sync_gaps(days=days)
+    return ApiResponse(data={"mining": mining, "gaps": gaps})
+
+
+@ops_router.get("/gaps")
+def list_gaps(_: CurrentUser = Depends(get_current_user)):
+    return ApiResponse(data=gap_repository.list_open())
+
+
+@ops_router.post("/gaps/{gap_id}/convert")
+def convert_gap(
+    gap_id: str,
+    body: dict,
+    _: CurrentUser = Depends(require_button("gap-task")),
+):
+    """缺口转知识补全任务：创建停用占位知识单元（管理员补充内容并启用后即可被检索）。"""
+    gap = gap_repository.get(gap_id)
+    if not gap:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="缺口不存在")
+    title = (body.get("title") or gap["question"]).strip()
+    unit = knowledge_repository.list_units(limit=1000)
+    from app.infra.persistence.knowledge_repository import knowledge_id_of
+    kid = knowledge_id_of(title)
+    import time as _t
+    get_auth_mongo_tool().knowledge_units.update_one(
+        {"knowledge_id": kid},
+        {"$set": {
+            "knowledge_id": kid, "title": title, "format": "docx",
+            "category": body.get("category") or "待补充", "enabled": False,
+            "source_gap_id": gap_id, "updated_at": datetime.now(timezone.utc),
+        }, "$setOnInsert": {"created_at": datetime.now(timezone.utc)}},
+        upsert=True,
+    )
+    gap_repository.convert(gap_id, kid)
+    return ApiResponse(data={"gapId": gap_id, "knowledgeId": kid, "title": title})
+
+
+@admin_router.get("/dashboard/overview")
+def dashboard_overview(days: int = 7, _: CurrentUser = Depends(get_current_user)):
+    from app.rag.sediment.dashboard_service import overview
+    return ApiResponse(data=overview(days=days))

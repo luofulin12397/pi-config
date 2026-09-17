@@ -48,6 +48,13 @@
     busy: false,
     toastText: "",
     messages: [],
+    ops: {
+      tab: "candidates", loading: false,
+      audit: [], candidates: [], published: [], gaps: [],
+      addForm: null,
+      convertForm: null,
+    },
+    dash: { loading: false, data: null },
     kb: {
       units: [], kw: "", loading: false,
       importJobs: [], importing: false,
@@ -241,6 +248,8 @@
       go: function (tab) {
         state.tab = tab;
         if (tab === "knowledge") loadKnowledge();
+        if (tab === "ops") loadOps();
+        if (tab === "dashboard") loadDashboard();
       },
       doLogin: function () {
         state.loginError = "";
@@ -312,6 +321,110 @@
       openPerm: function (u) { openPerm(u); },
       toggleArr: function (list, v) { toggleIn(list, v); },
       savePerm: function () { savePermCurrent(); },
+      hasMenuX: function (k) { return hasMenu(k); },
+      loadOps: function () {
+        var self = this;
+        state.ops.loading = true;
+        Promise.all([
+          Api.request("GET", "/ops/audit/logs?limit=50"),
+          Api.request("GET", "/ops/faq/candidates"),
+          Api.request("GET", "/ops/faqs"),
+          Api.request("GET", "/ops/gaps"),
+        ]).then(function (r) {
+          state.ops.audit = r[0] || [];
+          state.ops.candidates = r[1] || [];
+          state.ops.published = r[2] || [];
+          state.ops.gaps = r[3] || [];
+        }).catch(function (e) { window.__cs.toast(e.message); })
+          .then(function () { state.ops.loading = false; });
+      },
+      runMining: function () {
+        var self = this;
+        state.ops.loading = true;
+        Api.request("POST", "/admin/mining/run", { days: 7 })
+          .then(function (d) {
+            var m = d.mining || {};
+            window.__cs.toast("挖掘完成：扫描 " + m.scannedQuestions + " 问，生成 " + (m.createdCandidates || []).length + " 个候选；缺口同步 " + (d.gaps || {}).noResultQuestions + " 问");
+            return self.loadOps();
+          }).catch(function (e) { window.__cs.toast(e.message); })
+          .then(function () { state.ops.loading = false; });
+      },
+      startAdd: function () { state.ops.addForm = { question: "", answer: "" }; },
+      saveCandidate: function () {
+        var f = state.ops.addForm;
+        Api.request("POST", "/ops/faq/candidates", { question: f.question, answer: f.answer })
+          .then(function () { state.ops.addForm = null; window.__cs.toast("候选已添加"); self_loadOps(); });
+      },
+      publish: function (c) {
+        var q = prompt("确认/修改标准问法：", c.question);
+        if (q === null) return;
+        var a = prompt("确认/修改标准答案：", c.answer || "");
+        if (a === null) return;
+        Api.request("POST", "/ops/faq/candidates/" + c.candidate_id + "/publish", { question: q, answer: a })
+          .then(function () { window.__cs.toast("已发布并写入高速缓存"); loadOps(); });
+      },
+      reject: function (c) {
+        Api.request("POST", "/ops/faq/candidates/" + c.candidate_id + "/reject", {})
+          .then(function () { window.__cs.toast("已驳回"); loadOps(); });
+      },
+      toggleFaqCache: function (f) {
+        Api.request("PUT", "/ops/faqs/" + f.faq_id + "/cache", { enabled: !f.cacheEnabled })
+          .then(function () { f.cacheEnabled = !f.cacheEnabled; window.__cs.toast(f.cacheEnabled ? "缓存已启用" : "缓存已停用"); });
+      },
+      delFaq: function (f) {
+        if (!confirm("删除该 FAQ？")) return;
+        Api.request("DELETE", "/ops/faqs/" + f.faq_id)
+          .then(function () { window.__cs.toast("已删除"); loadOps(); });
+      },
+      convertGap: function (g) {
+        state.ops.convertForm = { gap: g, title: g.question, category: "待补充" };
+      },
+      saveConvert: function () {
+        var f = state.ops.convertForm;
+        Api.request("POST", "/ops/gaps/" + f.gap.gap_id + "/convert", { title: f.title, category: f.category })
+          .then(function (d) {
+            state.ops.convertForm = null;
+            window.__cs.toast("已创建补全任务《" + d.title + "》（占位停用，补充内容并启用后可被检索）");
+            loadOps();
+          });
+      },
+      loadDashboard: function () {
+        var self = this;
+        state.dash.loading = true;
+        Api.request("GET", "/admin/dashboard/overview?days=7").then(function (d) {
+          state.dash.data = d;
+          nextTick(function () { self.renderCharts(d); });
+        }).catch(function (e) { window.__cs.toast(e.message); })
+          .then(function () { state.dash.loading = false; });
+      },
+      renderCharts: function (d) {
+        if (!window.echarts) return;
+        var axis = { axisLabel: { color: "#64748b" }, axisLine: { lineStyle: { color: "#e2e8f0" } }, splitLine: { lineStyle: { color: "#f1f5f9" } } };
+        var c1 = echarts.init(document.getElementById("chart-trend"));
+        c1.setOption({ grid: { left: 50, right: 16, top: 30, bottom: 26 }, tooltip: { trigger: "axis" },
+          legend: { data: ["Token", "PV"], top: 0 },
+          xAxis: Object.assign({ type: "category", data: d.trend.days }, { axisLabel: axis.axisLabel }),
+          yAxis: [Object.assign({ type: "value" }, axis), Object.assign({ type: "value", splitLine: { show: false } }, axis)],
+          series: [{ name: "Token", type: "line", smooth: true, areaStyle: { opacity: .12 }, data: d.trend.tokens, itemStyle: { color: "#2563eb" } },
+                   { name: "PV", type: "line", smooth: true, yAxisIndex: 1, data: d.trend.pv, itemStyle: { color: "#10b981" } }] });
+        var c2 = echarts.init(document.getElementById("chart-tq"));
+        c2.setOption({ grid: { left: 10, right: 30, top: 10, bottom: 20, containLabel: true }, tooltip: {},
+          xAxis: Object.assign({ type: "value" }, axis),
+          yAxis: { type: "category", data: d.topQuestions.map(function (x) { return x.q; }).reverse(), axisLabel: { color: "#64748b", width: 130, overflow: "truncate" } },
+          series: [{ type: "bar", data: d.topQuestions.map(function (x) { return x.n; }).reverse(), itemStyle: { color: "#2563eb", borderRadius: [0, 4, 4, 0] }, barWidth: 14 }] });
+        var c3 = echarts.init(document.getElementById("chart-tk"));
+        var nameMap = {};
+        state.kb.units.forEach(function (u) { nameMap[u.id] = u.title; });
+        (d.denied_knowledge_ids = d.denied_knowledge_ids || []);
+        c3.setOption({ grid: { left: 10, right: 30, top: 10, bottom: 20, containLabel: true }, tooltip: {},
+          xAxis: Object.assign({ type: "value" }, axis), yAxis: { type: "category", data: d.topKnowledge.map(function (x) { return nameMap[x.kid] || x.kid; }).reverse(), axisLabel: { color: "#64748b" } },
+          series: [{ type: "bar", data: d.topKnowledge.map(function (x) { return x.n; }).reverse(), itemStyle: { color: "#8b5cf6", borderRadius: [0, 4, 4, 0] }, barWidth: 14 }] });
+        var c4 = echarts.init(document.getElementById("chart-lat"));
+        c4.setOption({ grid: { left: 40, right: 16, top: 30, bottom: 26 }, tooltip: {},
+          xAxis: { type: "category", data: d.latencyDist.map(function (x) { return x.label; }), axisLabel: axis.axisLabel },
+          yAxis: Object.assign({ type: "value" }, axis),
+          series: [{ type: "bar", data: d.latencyDist.map(function (x) { return x.n; }), itemStyle: { color: "#f59e0b", borderRadius: [4, 4, 0, 0] }, barWidth: 26 }] });
+      },
       fmtTime: function (iso) {
         if (!iso) return "—";
         var d = new Date(iso);
@@ -356,8 +469,8 @@
           <nav>
             <a :class="{on: s.tab === 'chat'}" @click="go('chat')">AI 问答工作台</a>
             <a v-if="hasMenu('knowledge')" :class="{on: s.tab === 'knowledge'}" @click="go('knowledge')">知识维护与导入</a>
-            <a class="disabled" title="M3">沉淀与运营</a>
-            <a class="disabled" title="M3">运营看板</a>
+            <a v-if="hasMenu('ops')" :class="{on: s.tab === 'ops'}" @click="go('ops')">沉淀与运营</a>
+            <a v-if="hasMenu('dashboard')" :class="{on: s.tab === 'dashboard'}" @click="go('dashboard')">运营看板</a>
             <a class="disabled" title="后续迭代">组织与系统配置</a>
           </nav>
           <div class="side-foot">
@@ -527,6 +640,141 @@
                 <button class="btn primary" @click="savePerm">保存并生效</button>
               </div>
             </div>
+          </div>
+        </div>
+
+
+        <!-- ===== 沉淀与运营（M3） ===== -->
+        <div v-else-if="s.tab === 'ops'" class="page">
+          <div class="page-head">
+            <h2>沉淀与运营</h2>
+            <button class="btn primary" @click="runMining">⛏ 立即挖掘（聚合近7日问答）</button>
+          </div>
+          <div class="tabs">
+            <a :class="{on: s.ops.tab === 'candidates'}" @click="s.ops.tab = 'candidates'">FAQ 候选 <span class="badge">{{ s.ops.candidates.filter(function(c){return c.status==='pending'}).length }}</span></a>
+            <a :class="{on: s.tab === 'x'}" style="display:none"></a>
+            <a :class="{on: s.ops.tab === 'published'}" @click="s.ops.tab = 'published'">已发布 FAQ <span class="badge">{{ s.ops.published.length }}</span></a>
+            <a :class="{on: s.ops.tab === 'gaps'}" @click="s.ops.tab = 'gaps'">知识缺口 <span class="badge warn">{{ s.ops.gaps.length }}</span></a>
+            <a :class="{on: s.ops.tab === 'audit'}" @click="s.ops.tab = 'audit'">问答审计</a>
+          </div>
+
+          <div v-if="s.ops.tab === 'candidates'">
+            <div class="card" style="margin-bottom:14px">
+              <h3>➕ 手动添加候选</h3>
+              <div class="form-row" v-if="s.ops.addForm">
+                <input class="ipt" style="flex:1" v-model="s.ops.addForm.question" placeholder="标准问题（如：生鲜破损怎么退款）" />
+                <input class="ipt" style="flex:2" v-model="s.ops.addForm.answer" placeholder="标准答案（可发布时再润色）" />
+                <button class="btn primary sm" @click="saveCandidate">添加</button>
+              </div>
+              <button v-else class="btn sm" @click="startAdd">＋ 新建候选 FAQ</button>
+            </div>
+            <div class="card table-card">
+              <table>
+                <thead><tr><th>标准问题（初稿）</th><th>频次</th><th>状态</th><th>标准答案（可在线润色）</th><th>操作</th></tr></thead>
+                <tbody>
+                  <tr v-for="c in s.ops.candidates" :key="c.candidate_id">
+                    <td class="strong">{{ c.question }}</td>
+                    <td><b>{{ c.freq }}</b></td>
+                    <td><span class="tag" :class="c.status === 'pending' ? '' : c.status">{{ { pending: '待审核', published: '已发布', rejected: '已驳回' }[c.status] }}</span></td>
+                    <td><textarea class="ipt" rows="2" v-model="c.answer" placeholder="（空）" :disabled="c.status !== 'pending'"></textarea></td>
+                    <td class="ops">
+                      <template v-if="c.status === 'pending'">
+                        <a v-if="hasBtn('faq-publish')" class="link" @click="publish(c)">审核发布</a>
+                        <a class="link danger" @click="reject(c)">驳回</a>
+                      </template>
+                    </td>
+                  </tr>
+                  <tr v-if="!s.ops.candidates.length"><td colspan="5" class="empty">暂无候选；点击右上角「立即挖掘」从问答日志聚类生成，或手动添加</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div v-if="s.ops.tab === 'published'" class="card table-card">
+            <table>
+              <thead><tr><th>标准问题</th><th>标准答案</th><th>缓存直出</th><th>命中次数</th><th>发布时间</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr v-for="f in s.ops.published" :key="f.faq_id">
+                  <td class="strong">{{ f.question }}</td>
+                  <td class="muted clip">{{ f.answer }}</td>
+                  <td>
+                    <label class="switch"><input type="checkbox" :checked="f.cacheEnabled" :disabled="!hasBtn('cache-toggle')" @change="toggleFaqCache(f)" /><i></i></label>
+                    <span class="muted">{{ f.cacheEnabled ? '命中直出' : '已停用' }}</span>
+                  </td>
+                  <td>{{ f.hitCount }}</td>
+                  <td class="muted">{{ fmtTime(f.publishedAt) }}</td>
+                  <td><a v-if="hasBtn('faq-publish')" class="link danger" @click="delFaq(f)">删除</a></td>
+                </tr>
+                <tr v-if="!s.ops.published.length"><td colspan="6" class="empty">暂无已发布 FAQ</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div v-if="s.ops.tab === 'gaps'" class="card table-card">
+            <table>
+              <thead><tr><th>未命中提问</th><th>提问部门</th><th>频次</th><th>最近提问</th><th>状态</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr v-for="g in s.ops.gaps" :key="g.gap_id">
+                  <td class="strong">{{ g.question }}</td>
+                  <td>{{ g.department || '—' }}</td>
+                  <td><b>{{ g.freq }}</b></td>
+                  <td class="muted">{{ fmtTime(g.lastAt) }}</td>
+                  <td><span class="tag">待补全</span></td>
+                  <td><a v-if="hasBtn('gap-task')" class="link" @click="convertGap(g)">转知识补全任务</a></td>
+                </tr>
+                <tr v-if="!s.ops.gaps.length"><td colspan="6" class="empty">暂无缺口；问答未命中知识库的问题会自动进入缺口池（触发「立即挖掘」后聚合展示）</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div v-if="s.ops.tab === 'audit'" class="card table-card">
+            <table>
+              <thead><tr><th>时间</th><th>来源</th><th>提问</th><th>放行</th><th>拦截</th><th>Token</th><th>耗时</th></tr></thead>
+              <tbody>
+                <tr v-for="(l, i) in s.ops.audit" :key="i">
+                  <td class="muted">{{ fmtTime(l.ts) }}</td>
+                  <td><span class="tag" :class="l.source">{{ { 'faq-cache': 'FAQ缓存', 'semantic-cache': '语义缓存', 'rag': 'RAG', 'denied': '权限受限', 'no-result': '未命中' }[l.source] || l.source }}</span></td>
+                  <td class="clip">{{ l.question }}</td>
+                  <td><span class="muted">{{ (l.allowed_ids || []).length }} 个</span></td>
+                  <td><span class="muted" :style="(l.denied_ids || []).length ? 'color:#b45309' : ''">{{ (l.denied_ids || []).length }} 个</span></td>
+                  <td>{{ l.tokens }}</td>
+                  <td>{{ l.latency }} ms</td>
+                </tr>
+                <tr v-if="!s.ops.audit.length"><td colspan="7" class="empty">暂无审计记录</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div v-if="s.ops.convertForm" class="modal-mask" @click.self="s.ops.convertForm = null">
+            <div class="modal">
+              <div class="modal-head"><h3>转知识补全任务</h3><a class="x" @click="s.ops.convertForm = null">✕</a></div>
+              <div class="form-row"><label>文档标题</label><input class="ipt" v-model="s.ops.convertForm.title" /></div>
+              <div class="form-row"><label>所属分类</label><input class="ipt" v-model="s.ops.convertForm.category" /></div>
+              <p class="muted">创建停用占位知识单元；管理员补充正文内容并启用后，该缺口提问即可被检索命中（闭环）。</p>
+              <div class="modal-foot">
+                <button class="btn" @click="s.ops.convertForm = null">取消</button>
+                <button class="btn primary" @click="saveConvert">创建任务</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== 运营看板（M3） ===== -->
+        <div v-else-if="s.tab === 'dashboard'" class="page">
+          <div class="page-head"><h2>运营看板</h2><span class="muted">近 7 日 · 数据来自问答审计日志</span></div>
+          <div class="kpi-grid" v-if="s.dash.data">
+            <div class="card kpi"><div class="kpi-label">今日访问量 PV</div><div class="kpi-val">{{ s.dash.data.pv }}</div></div>
+            <div class="card kpi"><div class="kpi-label">今日独立提问 UV</div><div class="kpi-val">{{ s.dash.data.uv }}</div></div>
+            <div class="card kpi"><div class="kpi-label">知识单元总数</div><div class="kpi-val">{{ s.dash.data.kbTotal }}</div></div>
+            <div class="card kpi"><div class="kpi-label">FAQ 缓存命中率</div><div class="kpi-val">{{ s.dash.data.faqHitRate }}<small>%</small></div></div>
+            <div class="card kpi"><div class="kpi-label">今日 Token 消耗</div><div class="kpi-val">{{ s.dash.data.tokenToday.toLocaleString() }}</div></div>
+            <div class="card kpi"><div class="kpi-label">平均响应延时（RAG）</div><div class="kpi-val">{{ s.dash.data.avgLatency }}<small>ms</small></div></div>
+          </div>
+          <div class="chart-grid" v-if="s.dash.data">
+            <div class="card"><h3>Token 与提问量趋势</h3><div class="chart" id="chart-trend"></div></div>
+            <div class="card"><h3>高频问题 TOP5</h3><div class="chart" id="chart-tq"></div></div>
+            <div class="card"><h3>高频引用知识 TOP5</h3><div class="chart" id="chart-tk"></div></div>
+            <div class="card"><h3>响应延时分布（RAG）</h3><div class="chart" id="chart-lat"></div></div>
           </div>
         </div>
 

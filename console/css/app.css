@@ -150,3 +150,19 @@ td.ops a { margin-right: 8px; white-space: nowrap; }
 .chunk-id { color: var(--muted); margin-bottom: 4px; }
 .toast-fixed { position: fixed; top: 18px; right: 18px; z-index: 99; background: #065f46; color: #fff; border-radius: 8px; padding: 10px 16px; font-size: 13px; box-shadow: var(--shadow); }
 .tag.fmt { background: #ede9fe; color: #6d28d9; border-color: #ddd6fe; }
+
+/* ===== 沉淀与运营 / 看板（M3） ===== */
+.tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--line); margin-bottom: 16px; }
+.tabs a { padding: 9px 16px; font-size: 14px; color: var(--muted); border-radius: 8px 8px 0 0; cursor: pointer; }
+.tabs a.on { color: var(--primary); font-weight: 600; box-shadow: inset 0 -2px var(--primary); }
+.badge { background: var(--primary-bg); color: var(--primary); border-radius: 999px; padding: 0 7px; font-size: 11px; margin-left: 4px; }
+.badge.warn { background: #fef3c7; color: #b45309; }
+.tag.rejected { background: #f1f5f9; color: #94a3b8; border-color: #e2e8f0; }
+textarea.ipt { resize: vertical; font-family: inherit; width: 100%; min-width: 220px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 14px; }
+.kpi { padding: 14px 16px; }
+.kpi-label { font-size: 12px; color: var(--muted); }
+.kpi-val { font-size: 26px; font-weight: 700; margin-top: 6px; }
+.kpi-val small { font-size: 13px; color: var(--muted); font-weight: 400; }
+.chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.chart { height: 250px; }
