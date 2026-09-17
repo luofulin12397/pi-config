@@ -121,3 +121,10 @@
 - 遗留待确认：①用户浏览器白屏问题——已修可选链兼容性 + 页面错误捕获，**待用户 Ctrl+F5 刷新确认**；若仍白屏，页面顶部会显示红色 JS 错误，让用户复制错误信息
 - 待办提醒：①两个 API key（DeepSeek/硅基流动）已在对话中暴露，建议轮换后更新 .env；②services.js（frontend-demo）与 console（真实前端）并存，demo 保留作为交互原型参考
 - 明日继续点：确认控制台可访问 → 按需调整交互 → M2 剩余（知识中心细节打磨/导入拖拽）或直接 M3（沉淀+看板，后端服务需新建）
+
+### 会话 4 续：M3-01/02 完成
+- 审计落库（qa_logs，全来源覆盖含 allowed/denied 列表）+ GET /ops/audit/logs
+- FAQ 全链路：faqs/faq_candidates 集合、手动建候选、审核发布（question 向量预计算）、管线 FAQ 优先匹配（余弦 0.85 阈值，实测 0.916 命中 250ms 直出）、hitCount
+- 修复：/query 响应补 source 字段 + audit_source 作用域 NameError
+- 接口规范：ops 接口独立 /ops 前缀 router（契约路径对齐）
+- 验证：scripts/test_m3_sediment.py 8/8（首轮 RAG→建候选→发布→同义直出→hitCount→审计双来源）
