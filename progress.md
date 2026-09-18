@@ -174,3 +174,12 @@
 - 验证：`likec4 format` 0 错误；21 个视图经 headless Chromium 逐个渲染 0 报错；单文件 HTML 4.1MB（file:// 下 3 视图实测通过）
 - 语法坑（已写进 .c4 注释）：1.59.3 **不支持 `**` / `_` 通配**（skill 文档是 main 分支新语法），里程碑视图用显式 FQN 清单、部署视图用 `element.*` 逐层展开；部署节点属性须写在 `instanceOf` 之前
 - 遗留：里程碑视图为显式清单，新增带标签元素后需同步补录
+
+### 会话 5 续：交付用容器化部署配置（在 ai_rag_knowbase-master 内，独立 git 提交 4dce62e）
+- `Dockerfile`（python-slim + uv，双服务共用）+ `.dockerignore`（排除 .env/output/logs/doc/models/.venv）
+- `deploy/requirements.deploy.txt`：由 `scripts/gen_deploy_requirements.py` 从 uv.lock 做依赖图可达性分析生成（111 / 234 包），剔除 app/ 零导入的 torch/CUDA 等 → 镜像 **815 MB**
+- `deploy/docker-compose.full.yml`：4 数据服务 + 2 应用服务；容器内网络改服务名；`PUBLIC_HOST` 解决 MinIO 图片地址必须浏览器可达的问题
+- 两份 env 模板（应用级 `.env` / compose 插值级 `deploy/.env`）+ `scripts/package_release.sh`（来源包 1.4 MB，含敏感内容硬校验）
+- 实测：compose config 通过、镜像构建 815 MB、容器内双服务导入（18/52 路由）、`/health` 与 `/console/` 均 200
+- 踩坑记录：`uv sync --no-install-package` 不剔除传递依赖；打包脚本排除模式前缀与 SIGPIPE 导致校验静默失效；compose `${}` 不读仓库根 .env；Windows 生成的锁文件含平台专属包
+- 文档：外层 `docs/deployment.md` 新增第七节（容器化交付流程），并说明手写安装列表以生成清单为准
