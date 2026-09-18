@@ -1,0 +1,56 @@
+from typing import Any
+
+from pydantic import BaseModel
+
+class QueryRequestParam(BaseModel):
+    query: str
+    session_id: str = ""
+    is_stream: bool = False
+
+class QueryStreamResponse(BaseModel):
+    message:str
+    session_id:str
+
+class QueryNotStreamResponse(BaseModel):
+    message: str
+    session_id: str
+    answer:str
+    done_list:list
+    image_urls:list
+    citations: list | None = None
+    cache_hit: bool = False
+    allowed_ids: list = []   # 鉴权放行的知识单元（审计）
+    denied_ids: list = []    # 鉴权拦截的知识单元（审计）
+    source: str = ""         # 来源：faq-cache / semantic-cache / rag / denied / no-result
+
+# 清空历史记录响应的结构
+class HistoryCleanResponse(BaseModel):
+    message:str
+    deleted_count:int
+
+
+# 查询历史聊天记录的结构
+class HistoryItemResponse(BaseModel):
+    id:str
+    session_id:str
+    role:str
+    text:str
+    rewritten_query:str
+    item_names:list
+    image_urls:list | None
+    citations: list | None = None
+    ts:Any
+
+class HistoryResponse(BaseModel):
+    user_id: str
+    items: list[HistoryItemResponse]
+
+
+class SuggestionItemResponse(BaseModel):
+    question: str
+    count: int
+
+
+class SuggestionsResponse(BaseModel):
+    user_id: str
+    items: list[SuggestionItemResponse]

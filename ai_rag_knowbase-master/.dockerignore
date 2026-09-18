@@ -1,0 +1,37 @@
+# 构建上下文排除项（镜像里只要 app 代码 + 运行依赖）
+# 密钥与运行产物绝不入镜像
+.env
+.env.*
+!.env.example
+.venv/
+
+# 运行产物与本地数据
+output/
+logs/
+models/
+doc/
+*.log
+
+# Python 缓存与测试
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+app/test/
+
+# 版本控制与前端工具链
+.git/
+.gitignore
+node_modules/
+
+# 文档与协作文件（运行不需要）
+docs/
+*.md
+.prd/
+prd/
+
+# 打包产物
+release/
+dist/
+*.tar.gz

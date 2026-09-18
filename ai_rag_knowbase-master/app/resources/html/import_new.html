@@ -1,0 +1,746 @@
+<!-- 掌柜智库 - 知识库导入中心 (Enterprise Dark Dashboard) -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>掌柜智库 - 知识库导入中心</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0b1120;
+      --sidebar: #0d1424;
+      --card: #161b2a;
+      --border: rgba(255,255,255,0.06);
+      --border-light: rgba(255,255,255,0.1);
+      --text: #f1f5f9;
+      --text-2: #9ca3af;
+      --text-3: #64748b;
+      --blue: #3b82f6;
+      --blue-dim: rgba(59,130,246,0.12);
+      --green: #10b981;
+      --amber: #f59e0b;
+      --purple: #8b5cf6;
+      --rose: #fb7185;
+      --r: 8px;
+      --r-lg: 12px;
+      --sidebar-w: 240px;
+      --panel-w: 300px;
+      --ease: cubic-bezier(0.4,0,0.2,1);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', 'Microsoft YaHei', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-thumb { background: rgba(59,130,246,0.25); border-radius: 3px; }
+
+    .app { display: flex; height: 100vh; }
+
+    /* Sidebar (shared) */
+    .sidebar {
+      width: var(--sidebar-w); min-width: var(--sidebar-w);
+      background: var(--sidebar); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+    }
+    .brand {
+      display: flex; align-items: center; gap: 10px;
+      padding: 20px 18px; border-bottom: 1px solid var(--border);
+    }
+    .brand-logo {
+      width: 36px; height: 36px; border-radius: var(--r);
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 12px rgba(59,130,246,0.35);
+    }
+    .brand-logo svg { width: 20px; height: 20px; color: #fff; }
+    .brand-name { font-size: 15px; font-weight: 700; }
+    .nav { flex: 1; padding: 12px 10px; overflow-y: auto; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: var(--r);
+      font-size: 13px; color: var(--text-2); cursor: pointer;
+      transition: all .2s; border: 1px solid transparent;
+      margin-bottom: 2px; text-decoration: none;
+    }
+    .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; opacity: .7; }
+    .nav-item:hover { background: rgba(59,130,246,0.06); color: var(--text); }
+    .nav-item.active {
+      background: var(--blue-dim); color: var(--text);
+      border-color: rgba(59,130,246,0.2);
+    }
+    .nav-item.active svg { opacity: 1; color: var(--blue); }
+    .nav-sub { padding-left: 28px; }
+    .nav-sub .nav-item { font-size: 12.5px; padding: 8px 12px; }
+    .nav-group-title {
+      font-size: 11px; color: var(--text-3); padding: 14px 12px 6px;
+      text-transform: uppercase; letter-spacing: .06em; font-weight: 600;
+    }
+    .sidebar-user {
+      padding: 14px 16px; border-top: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .user-avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: linear-gradient(135deg, #6366f1, #3b82f6);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 600;
+    }
+    .user-name { font-size: 13px; font-weight: 600; }
+    .user-role { font-size: 11px; color: var(--text-3); }
+
+    /* Main */
+    .main {
+      flex: 1; display: flex; flex-direction: column;
+      min-width: 0; overflow: hidden;
+    }
+    .page-header {
+      padding: 20px 24px 16px; border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .page-header h1 { font-size: 18px; font-weight: 700; }
+    .page-header p { font-size: 12px; color: var(--text-3); margin-top: 4px; }
+
+    .main-body {
+      flex: 1; overflow-y: auto; padding: 20px 24px;
+    }
+
+    /* Upload row */
+    .upload-row {
+      display: grid; grid-template-columns: 1fr 280px; gap: 16px;
+      margin-bottom: 20px;
+    }
+    .upload-zone {
+      border: 2px dashed rgba(59,130,246,0.25);
+      border-radius: var(--r-lg);
+      padding: 40px 24px; text-align: center;
+      background: var(--card); cursor: pointer;
+      transition: all .25s;
+    }
+    .upload-zone:hover, .upload-zone.over {
+      border-color: var(--blue);
+      background: rgba(59,130,246,0.04);
+    }
+    .upload-icon {
+      width: 56px; height: 56px; margin: 0 auto 14px;
+      border-radius: 14px; background: var(--blue-dim);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .upload-zone h3 { font-size: 15px; margin-bottom: 6px; }
+    .upload-zone p { font-size: 12px; color: var(--text-3); }
+    .btn-primary {
+      margin-top: 16px; padding: 8px 20px;
+      border: none; border-radius: var(--r);
+      background: var(--blue); color: #fff;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      box-shadow: 0 2px 8px rgba(59,130,246,0.35);
+      transition: all .2s;
+    }
+    .btn-primary:hover { background: #2563eb; }
+    .format-grid {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--r-lg); padding: 16px;
+    }
+    .format-grid h4 { font-size: 12px; color: var(--text-3); margin-bottom: 12px; font-weight: 600; }
+    .formats {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    }
+    .fmt {
+      padding: 10px 6px; border-radius: var(--r);
+      border: 1px solid var(--border); text-align: center;
+      font-size: 11px; font-weight: 600; color: var(--text-2);
+    }
+    .fmt span { display: block; font-size: 18px; margin-bottom: 4px; }
+
+    /* Table */
+    .table-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--r-lg); overflow: hidden;
+    }
+    .table-head {
+      padding: 14px 18px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .table-head h3 { font-size: 14px; font-weight: 600; }
+    .table-count { font-size: 12px; color: var(--text-3); }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    thead th {
+      padding: 10px 14px; text-align: left;
+      color: var(--text-3); font-weight: 600;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap; background: rgba(0,0,0,0.15);
+    }
+    tbody td {
+      padding: 12px 14px; border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    tbody tr { cursor: pointer; transition: background .15s; }
+    tbody tr:hover { background: rgba(59,130,246,0.04); }
+    tbody tr.selected { background: rgba(59,130,246,0.08); }
+    tbody tr:last-child td { border-bottom: none; }
+    .fname {
+      display: flex; align-items: center; gap: 8px;
+      font-weight: 600; max-width: 200px;
+    }
+    .fname span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ficon {
+      width: 28px; height: 28px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; flex-shrink: 0;
+    }
+    .ficon.pdf { background: rgba(251,113,133,0.12); }
+    .ficon.md { background: rgba(59,130,246,0.12); }
+    .status-dot {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-weight: 600;
+    }
+    .status-dot i {
+      width: 7px; height: 7px; border-radius: 50%;
+    }
+    .status-dot.completed i { background: var(--green); box-shadow: 0 0 6px rgba(16,185,129,0.5); }
+    .status-dot.processing i { background: var(--amber); animation: blink 1.2s infinite; }
+    .status-dot.uploading i { background: var(--blue); }
+    .status-dot.failed i { background: var(--rose); }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .status-dot.completed { color: var(--green); }
+    .status-dot.processing { color: var(--amber); }
+    .status-dot.uploading { color: var(--blue); }
+    .status-dot.failed { color: var(--rose); }
+
+    .prog-bar {
+      width: 80px; height: 4px; border-radius: 2px;
+      background: rgba(255,255,255,0.06); overflow: hidden;
+    }
+    .prog-bar i {
+      display: block; height: 100%; border-radius: 2px;
+      transition: width .5s var(--ease);
+    }
+    .prog-bar.parse i { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+    .prog-bar.vector i { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
+    .prog-bar.import i { background: linear-gradient(90deg, #3b82f6, #06b6d4); }
+
+    .action-link {
+      color: var(--blue); cursor: pointer; font-size: 11px;
+      margin-right: 8px; text-decoration: none;
+    }
+    .action-link:hover { text-decoration: underline; }
+    .action-link.danger { color: var(--rose); }
+    .empty-row td {
+      text-align: center; color: var(--text-3);
+      padding: 40px 14px !important;
+    }
+
+    /* Right Panel */
+    .right-panel {
+      width: var(--panel-w); min-width: var(--panel-w);
+      background: var(--sidebar); border-left: 1px solid var(--border);
+      overflow-y: auto; padding: 16px 14px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .panel-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--r-lg); overflow: hidden;
+    }
+    .panel-head {
+      padding: 12px 14px; border-bottom: 1px solid var(--border);
+      font-size: 13px; font-weight: 600;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .panel-head svg { width: 16px; height: 16px; color: var(--blue); }
+    .panel-body { padding: 12px 14px; }
+    .detail-row {
+      display: flex; justify-content: space-between;
+      font-size: 12px; padding: 7px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-row span:first-child { color: var(--text-3); }
+    .detail-row span:last-child { font-weight: 600; max-width: 160px; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .btn-preview {
+      width: 100%; margin-top: 12px; padding: 8px;
+      border: 1px solid var(--border-light); border-radius: var(--r);
+      background: transparent; color: var(--text-2);
+      font-size: 12px; cursor: pointer; transition: all .2s;
+    }
+    .btn-preview:hover { border-color: var(--blue); color: var(--blue); }
+
+    /* Import flow stepper */
+    .flow-step {
+      display: flex; gap: 12px; padding: 10px 0;
+      position: relative;
+    }
+    .flow-step:not(:last-child)::before {
+      content: ''; position: absolute;
+      left: 13px; top: 36px; width: 2px; height: calc(100% - 16px);
+      background: var(--border-light);
+    }
+    .flow-step.done:not(:last-child)::before { background: var(--green); }
+    .flow-icon {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; flex-shrink: 0; z-index: 1;
+      border: 2px solid var(--border-light);
+      background: var(--card); color: var(--text-3);
+    }
+    .flow-step.act .flow-icon {
+      border-color: var(--blue); color: var(--blue);
+      background: var(--blue-dim);
+    }
+    .flow-step.done .flow-icon {
+      border-color: var(--green); color: var(--green);
+      background: rgba(16,185,129,0.12);
+    }
+    .flow-info { flex: 1; min-width: 0; }
+    .flow-name { font-size: 12px; font-weight: 600; }
+    .flow-meta { font-size: 10px; color: var(--text-3); margin-top: 2px; }
+
+    /* Chunk preview */
+    .chunk-box {
+      background: rgba(0,0,0,0.25); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 12px;
+      font-size: 11px; line-height: 1.65; color: var(--text-2);
+      max-height: 120px; overflow-y: auto;
+    }
+    .chunk-meta {
+      display: flex; gap: 12px; margin-top: 8px;
+      font-size: 10px; color: var(--text-3);
+    }
+    .empty-hint { font-size: 12px; color: var(--text-3); text-align: center; padding: 12px 0; }
+
+    .perm-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--r-lg); padding: 16px;
+    }
+    .perm-card h4 { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+    .perm-list { display: flex; flex-direction: column; gap: 8px; max-height: 160px; overflow-y: auto; }
+    .perm-item {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px; color: var(--text-2); cursor: pointer;
+    }
+    .perm-item input { accent-color: var(--blue); }
+    .logout-btn {
+      margin-left: auto; font-size: 11px; color: var(--text-3);
+      background: none; border: none; cursor: pointer; padding: 4px 8px;
+    }
+    .logout-btn:hover { color: var(--rose); }
+
+    @media (max-width: 1100px) { .right-panel { display: none; } .upload-row { grid-template-columns: 1fr; } }
+    @media (max-width: 768px) { .sidebar { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 017 7c0 2.5-1.5 4.5-3 6l-1 1v3H9v-3l-1-1c-1.5-1.5-3-3.5-3-6a7 7 0 017-7z"/><line x1="9" y1="22" x2="15" y2="22"/></svg>
+        </div>
+        <span class="brand-name">掌柜智库</span>
+      </div>
+      <nav class="nav">
+        <a class="nav-item" id="navChat" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          智能问答
+        </a>
+        <div class="nav-group-title">知识库管理</div>
+        <div class="nav-sub">
+          <a class="nav-item active" href="/html/import">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+            文件上传
+          </a>
+          <div class="nav-item" style="opacity:.5;cursor:default">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            文档列表
+          </div>
+          <div class="nav-item" style="opacity:.5;cursor:default">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            Chunk 管理
+          </div>
+        </div>
+        <div class="nav-item" style="opacity:.5;cursor:default">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          历史记录
+        </div>
+        <div class="nav-item" style="opacity:.5;cursor:default">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          系统设置
+        </div>
+      </nav>
+      <div class="sidebar-user">
+        <div class="user-avatar">A</div>
+        <div style="flex:1;min-width:0">
+          <div class="user-name">—</div>
+          <div class="user-role">—</div>
+        </div>
+        <button type="button" class="logout-btn" id="btnLogout">注销</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="page-header">
+        <h1>知识库导入中心</h1>
+        <p>文件上传 → 文档解析 → 语义切块 → 向量化 → 写入向量库</p>
+      </header>
+
+      <div class="main-body">
+        <div class="upload-row">
+          <div class="upload-zone" id="dz">
+            <div class="upload-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+            </div>
+            <h3>拖拽文件到此处，或点击选择文件</h3>
+            <p>支持 PDF、Markdown 格式，自动进入 RAG 导入流水线</p>
+            <button class="btn-primary" type="button">选择文件</button>
+          </div>
+          <div class="format-grid perm-card">
+            <h4>文档访问权限</h4>
+            <p style="font-size:11px;color:var(--text-3);margin-bottom:10px">选择可阅读此文档的角色（可多选）</p>
+            <div class="perm-list" id="roleList">
+              <div class="empty-hint">加载角色中...</div>
+            </div>
+          </div>
+        </div>
+        <input type="file" id="fi" hidden multiple accept=".pdf,.md" />
+
+        <div class="table-card">
+          <div class="table-head">
+            <h3>导入任务列表</h3>
+            <span class="table-count" id="taskCount">0 个任务</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>文件名</th>
+                  <th>格式</th>
+                  <th>大小</th>
+                  <th>状态</th>
+                  <th>解析进度</th>
+                  <th>向量化进度</th>
+                  <th>导入进度</th>
+                  <th>创建时间</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="taskTable">
+                <tr class="empty-row"><td colspan="9">暂无导入任务，请上传文件开始导入</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <aside class="right-panel">
+      <div class="panel-card">
+        <div class="panel-head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          文档详情
+        </div>
+        <div class="panel-body" id="docDetail">
+          <div class="empty-hint">选择任务查看文档详情</div>
+        </div>
+      </div>
+      <div class="panel-card">
+        <div class="panel-head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          导入流程
+        </div>
+        <div class="panel-body" id="flowPanel">
+          <div class="flow-step pend" data-s="upload"><div class="flow-icon">📤</div><div class="flow-info"><div class="flow-name">文件上传</div><div class="flow-meta">等待中</div></div></div>
+          <div class="flow-step pend" data-s="parse"><div class="flow-icon">📖</div><div class="flow-info"><div class="flow-name">文档解析</div><div class="flow-meta">PDF → Markdown</div></div></div>
+          <div class="flow-step pend" data-s="chunk"><div class="flow-icon">✂️</div><div class="flow-info"><div class="flow-name">语义切块</div><div class="flow-meta">Semantic Chunking</div></div></div>
+          <div class="flow-step pend" data-s="embed"><div class="flow-icon">🧬</div><div class="flow-info"><div class="flow-name">向量化</div><div class="flow-meta">BGE-M3 Embedding</div></div></div>
+          <div class="flow-step pend" data-s="milvus"><div class="flow-icon">🗄️</div><div class="flow-info"><div class="flow-name">写入向量库</div><div class="flow-meta">Milvus Index</div></div></div>
+        </div>
+      </div>
+      <div class="panel-card">
+        <div class="panel-head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+          Chunk 预览
+        </div>
+        <div class="panel-body" id="chunkPanel">
+          <div class="empty-hint">导入完成后可预览 Chunk 内容</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script src="/static/auth.js"></script>
+  <script>
+    if (!RagAuth.guardImportPage()) { /* redirecting */ }
+    const API_BASE = RagAuth.getImportApiBase();
+    if (location.protocol === 'file:') document.body.classList.add('file-mode');
+    const CHAT_URL = RagAuth.queryHomeUrl();
+
+    document.getElementById('navChat').href = CHAT_URL;
+
+    document.getElementById('btnLogout').addEventListener('click', () => RagAuth.logout());
+
+    let selectedRoles = ['common_user'];
+
+    async function initAuth() {
+      const user = await RagAuth.requireAuth();
+      if (!user) return;
+      RagAuth.bindUserSidebar(user);
+      const roles = await RagAuth.fetchRoles();
+      const roleList = document.getElementById('roleList');
+      if (!roles.length) {
+        roleList.innerHTML = '<div class="empty-hint">暂无角色，请先运行 scripts/seed_auth.py</div>';
+        return;
+      }
+      roleList.innerHTML = roles.map(r => `
+        <label class="perm-item">
+          <input type="checkbox" name="role" value="${r.code}" ${r.code === 'common_user' || r.code === 'admin' ? 'checked' : ''} />
+          <span>${r.name} (${r.code})</span>
+        </label>
+      `).join('');
+      roleList.querySelectorAll('input[name=role]').forEach(cb => {
+        cb.addEventListener('change', () => {
+          selectedRoles = [...roleList.querySelectorAll('input[name=role]:checked')].map(x => x.value);
+          if (!selectedRoles.length) selectedRoles = ['common_user'];
+        });
+      });
+      selectedRoles = [...roleList.querySelectorAll('input[name=role]:checked')].map(x => x.value);
+    }
+    initAuth();
+
+    const dz = document.getElementById('dz');
+    const fi = document.getElementById('fi');
+    const taskTable = document.getElementById('taskTable');
+    const taskCount = document.getElementById('taskCount');
+    const docDetail = document.getElementById('docDetail');
+    const flowPanel = document.getElementById('flowPanel');
+    const chunkPanel = document.getElementById('chunkPanel');
+
+    const tasks = new Map();
+    let selectedId = null;
+    let nTotal = 0;
+
+    const STAGES = ['upload','parse','chunk','embed','milvus'];
+    const STAGE_LABELS = {
+      upload: '文件上传', parse: '文档解析', chunk: '语义切块',
+      embed: '向量化', milvus: '写入向量库'
+    };
+    const NMAP = {
+      entry:'upload', pdf_to_md:'parse', pdf_parse:'parse',
+      md_img:'parse', enrich_markdown_images:'parse',
+      document_split:'chunk', split:'chunk',
+      bge_embedding:'embed', embedding:'embed',
+      item_name_recognition:'embed', item_name:'embed',
+      import_milvus:'milvus', index:'milvus',
+    };
+
+    function guess(n) {
+      n = (n||'').toLowerCase();
+      if (/upload|entry/.test(n)) return 'upload';
+      if (/pdf|parse|mineru|md_img/.test(n)) return 'parse';
+      if (/split|chunk/.test(n)) return 'chunk';
+      if (/embed|bge/.test(n)) return 'embed';
+      if (/milvus|index/.test(n)) return 'milvus';
+      return null;
+    }
+
+    function fmtSz(b) {
+      if (b < 1024) return b + ' B';
+      if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+      return (b/1048576).toFixed(1) + ' MB';
+    }
+
+    function fmtTime(d) {
+      return d.toLocaleString('zh-CN', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+    }
+
+    function calcProgress(doneList, stage) {
+      const idx = STAGES.indexOf(stage);
+      if (idx < 0) return 0;
+      let maxDone = -1;
+      for (const d of (doneList || [])) {
+        const k = NMAP[d] || guess(d);
+        const i = STAGES.indexOf(k);
+        if (i > maxDone) maxDone = i;
+      }
+      if (maxDone >= idx) return 100;
+      if (maxDone === idx - 1) return 45;
+      return 0;
+    }
+
+    function overallProgress(doneList) {
+      let maxDone = 0;
+      for (const d of (doneList || [])) {
+        const k = NMAP[d] || guess(d);
+        const i = STAGES.indexOf(k);
+        if (i >= 0) maxDone = Math.max(maxDone, i + 1);
+      }
+      return Math.min(Math.round(maxDone / STAGES.length * 100), 100);
+    }
+
+    function pipeSync(dl, rl) {
+      flowPanel.querySelectorAll('.flow-step').forEach(el => {
+        el.className = 'flow-step pend';
+        el.querySelector('.flow-meta').textContent = '等待中';
+      });
+      for (const d of (dl || [])) {
+        const k = NMAP[d] || guess(d);
+        const el = flowPanel.querySelector(`[data-s="${k}"]`);
+        if (el) { el.className = 'flow-step done'; el.querySelector('.flow-meta').textContent = '已完成'; }
+      }
+      for (const r of (rl || [])) {
+        const k = NMAP[r] || guess(r);
+        const el = flowPanel.querySelector(`[data-s="${k}"]`);
+        if (el) { el.className = 'flow-step act'; el.querySelector('.flow-meta').textContent = '进行中...'; }
+      }
+    }
+
+    function updateDetail(task) {
+      if (!task) {
+        docDetail.innerHTML = '<div class="empty-hint">选择任务查看文档详情</div>';
+        chunkPanel.innerHTML = '<div class="empty-hint">导入完成后可预览 Chunk 内容</div>';
+        pipeSync([], []);
+        return;
+      }
+      docDetail.innerHTML = `
+        <div class="detail-row"><span>文件名</span><span title="${task.name}">${task.name}</span></div>
+        <div class="detail-row"><span>文件大小</span><span>${fmtSz(task.size)}</span></div>
+        <div class="detail-row"><span>Chunk 数量</span><span>${task.status === 'completed' ? (task.chunks || '—') : '—'}</span></div>
+        <div class="detail-row"><span>Embedding 数</span><span>${task.status === 'completed' ? (task.embeddings || '—') : '—'}</span></div>
+        <div class="detail-row"><span>更新时间</span><span>${task.created}</span></div>
+        <button class="btn-preview" type="button">预览文档</button>
+      `;
+      if (task.status === 'completed') {
+        chunkPanel.innerHTML = '<div class="empty-hint">Chunk 预览需后端提供接口后展示</div>';
+      } else {
+        chunkPanel.innerHTML = '<div class="empty-hint">导入完成后可预览 Chunk 内容</div>';
+      }
+    }
+
+    function selectTask(id) {
+      selectedId = id;
+      taskTable.querySelectorAll('tr').forEach(r => r.classList.toggle('selected', r.dataset.id === id));
+      updateDetail(tasks.get(id));
+    }
+
+    function removeEmptyRow() {
+      const empty = taskTable.querySelector('.empty-row');
+      if (empty) empty.remove();
+    }
+
+    function renderRow(task) {
+      const tr = document.getElementById('row-' + task.id);
+      if (!tr) return;
+      const parsePct = calcProgress(task.doneList, 'parse');
+      const vectorPct = calcProgress(task.doneList, 'embed');
+      const importPct = overallProgress(task.doneList);
+
+      const statusMap = {
+        uploading: ['uploading', '上传中'],
+        processing: ['processing', '处理中'],
+        completed: ['completed', '已完成'],
+        failed: ['failed', '失败'],
+      };
+      const [cls, label] = statusMap[task.status] || ['processing', '处理中'];
+
+      tr.innerHTML = `
+        <td><div class="fname"><div class="ficon ${task.ext}">${task.ext === 'pdf' ? '📕' : '📝'}</div><span title="${task.name}">${task.name}</span></div></td>
+        <td>${task.ext.toUpperCase()}</td>
+        <td>${fmtSz(task.size)}</td>
+        <td><span class="status-dot ${cls}"><i></i>${label}</span></td>
+        <td><div class="prog-bar parse"><i style="width:${parsePct}%"></i></div></td>
+        <td><div class="prog-bar vector"><i style="width:${vectorPct}%"></i></div></td>
+        <td><div class="prog-bar import"><i style="width:${importPct}%"></i></div></td>
+        <td>${task.created}</td>
+        <td>
+          <a class="action-link" onclick="event.stopPropagation();selectTask('${task.id}')">查看</a>
+          <a class="action-link danger" onclick="event.stopPropagation()">删除</a>
+        </td>
+      `;
+    }
+
+    function addTaskRow(task) {
+      removeEmptyRow();
+      taskTable.insertAdjacentHTML('afterbegin', `<tr id="row-${task.id}" data-id="${task.id}"></tr>`);
+      const tr = document.getElementById('row-' + task.id);
+      tr.addEventListener('click', () => selectTask(task.id));
+      renderRow(task);
+      taskCount.textContent = `${tasks.size} 个任务`;
+    }
+
+    dz.addEventListener('click', () => fi.click());
+    dz.querySelector('.btn-primary').addEventListener('click', e => { e.stopPropagation(); fi.click(); });
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+    dz.addEventListener('dragleave', e => { e.preventDefault(); dz.classList.remove('over'); });
+    dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); goFiles(e.dataTransfer.files); });
+    fi.addEventListener('change', e => goFiles(e.target.files));
+
+    function goFiles(fs) { Array.from(fs).forEach(upload); }
+
+    async function upload(file) {
+      nTotal++;
+      const id = 't' + Math.random().toString(36).slice(2, 8);
+      const ext = (file.name.split('.').pop() || '').toLowerCase();
+      const created = fmtTime(new Date());
+      const task = {
+        id, name: file.name, size: file.size, ext,
+        status: 'uploading', created, doneList: [], chunks: null, embeddings: null,
+      };
+      tasks.set(id, task);
+      addTaskRow(task);
+      selectTask(id);
+      pipeSync([], ['upload']);
+
+      const fd = new FormData();
+      fd.append('files', file);
+      fd.append('allowed_roles', JSON.stringify(selectedRoles.length ? selectedRoles : ['common_user']));
+      try {
+        const res = await RagAuth.authFetch(`${API_BASE}/upload`, { method: 'POST', body: fd });
+        if (!res.ok) throw new Error('上传失败');
+        const data = await res.json();
+        task.taskId = data.task_ids[0];
+        task.status = 'processing';
+        task.doneList = ['entry'];
+        renderRow(task);
+        pipeSync(['entry'], ['pdf_to_md']);
+        poll(task);
+      } catch (e) {
+        task.status = 'failed';
+        renderRow(task);
+      }
+    }
+
+    function poll(task) {
+      const iv = setInterval(async () => {
+        try {
+          const res = await RagAuth.authFetch(`${API_BASE}/status/${task.taskId}`);
+          const data = await res.json();
+          task.doneList = data.done_list || [];
+          renderRow(task);
+          if (selectedId === task.id) {
+            pipeSync(data.done_list, data.running_list);
+          }
+
+          if (data.status === 'completed') {
+            task.status = 'completed';
+            renderRow(task);
+            if (selectedId === task.id) {
+              pipeSync(['entry','pdf_to_md','document_split','bge_embedding','import_milvus'], []);
+              updateDetail(task);
+            }
+            clearInterval(iv);
+          } else if (data.status === 'failed') {
+            task.status = 'failed';
+            renderRow(task);
+            clearInterval(iv);
+          }
+        } catch (e) { console.error(e); }
+      }, 2000);
+    }
+  </script>
+</body>
+</html>

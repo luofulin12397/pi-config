@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>华智智库 · RAG 知识库管理平台</title>
+  <link rel="stylesheet" href="css/app.css?v=3">
+</head>
+<body>
+  <div id="app"></div>
+  <script src="vendor/vue.global.prod.js?v=3"></script>
+  <script src="vendor/echarts.min.js?v=3"></script>
+  <script src="js/api.js?v=3"></script>
+  <script src="js/app.js?v=3"></script>
+  <script>
+    // 白屏诊断：错误显示在页面顶部（12 秒自动消失，可点击关闭）
+    (function () {
+      var shown = {};
+      function showErr(title, text) {
+        var key = title + '|' + (text || '').slice(0, 80);
+        if (shown[key]) return;          // 同一错误不重复刷
+        shown[key] = true;
+        setTimeout(function () { delete shown[key]; }, 5000);
+        var el = document.createElement('pre');
+        el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#7f1d1d;color:#fff;padding:10px 36px 10px 10px;font-size:12px;white-space:pre-wrap;cursor:pointer;';
+        el.textContent = '[' + title + '] ' + (text || '') + '\n（点击关闭，12 秒后自动消失）';
+        el.onclick = function () { el.remove(); };
+        document.body.appendChild(el);
+        setTimeout(function () { el.remove(); }, 12000);
+      }
+      window.addEventListener('error', function (e) {
+        showErr('JS 错误', (e.message || '') + '\n' + (e.filename || '') + ':' + (e.lineno || ''));
+      });
+      window.addEventListener('unhandledrejection', function (e) {
+        var r = e.reason;
+        showErr('未处理的 Promise 异常', (r && (r.message || r)) || '');
+      });
+    })();
+  </script>
+  <script>console.log('[诊断] 脚本加载完成');</script>
+</body>
+</html>

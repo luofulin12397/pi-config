@@ -1,5 +1,19 @@
-# 独立源码包：内部自带 AGENTS.md 工作流，将来独立管理
-ai_rag_knowbase-master/
+# 后端源码已并入本仓库（subtree 方式，保留其历史）
+# 仅排除运行产物、本地环境与密钥
+ai_rag_knowbase-master/.env
+ai_rag_knowbase-master/.env.*
+!ai_rag_knowbase-master/.env.example
+!ai_rag_knowbase-master/deploy/.env.example
+ai_rag_knowbase-master/.venv/
+ai_rag_knowbase-master/output/
+ai_rag_knowbase-master/logs/
+ai_rag_knowbase-master/doc/
+ai_rag_knowbase-master/models/
+ai_rag_knowbase-master/release/
+ai_rag_knowbase-master/node_modules/
+ai_rag_knowbase-master/.pytest_cache/
+ai_rag_knowbase-master/.ruff_cache/
+ai_rag_knowbase-master/**/__pycache__/
 
 # 通用
 node_modules/

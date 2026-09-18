@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>掌柜智库 - 登录</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0b1120;
+      --card: #161b2a;
+      --border: rgba(255,255,255,0.08);
+      --text: #f1f5f9;
+      --text-2: #94a3b8;
+      --blue: #3b82f6;
+      --red: #ef4444;
+      --r: 10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', 'Microsoft YaHei', sans-serif;
+      background: radial-gradient(ellipse at 20% 20%, rgba(59,130,246,0.12), transparent 50%),
+                  radial-gradient(ellipse at 80% 80%, rgba(99,102,241,0.08), transparent 50%),
+                  var(--bg);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text);
+    }
+    .card {
+      width: 100%; max-width: 400px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 36px 32px;
+      box-shadow: 0 24px 48px rgba(0,0,0,0.4);
+    }
+    .logo {
+      width: 48px; height: 48px; border-radius: 12px;
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 20px;
+      font-size: 22px;
+    }
+    h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .sub { font-size: 13px; color: var(--text-2); margin-bottom: 28px; }
+    label { display: block; font-size: 12px; color: var(--text-2); margin-bottom: 6px; font-weight: 500; }
+    input[type=text], input[type=password] {
+      width: 100%; padding: 11px 14px; border-radius: var(--r);
+      border: 1px solid var(--border); background: rgba(0,0,0,0.25);
+      color: var(--text); font-size: 14px; margin-bottom: 16px;
+      outline: none; transition: border .2s;
+    }
+    input:focus { border-color: rgba(59,130,246,0.5); }
+    .remember {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; color: var(--text-2); margin-bottom: 22px;
+      cursor: pointer; user-select: none;
+    }
+    .remember input { width: auto; margin: 0; }
+    .btn {
+      width: 100%; padding: 12px; border: none; border-radius: var(--r);
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      color: #fff; font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: opacity .2s;
+    }
+    .btn:hover { opacity: .9; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .err {
+      background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3);
+      color: #fca5a5; font-size: 13px; padding: 10px 12px; border-radius: var(--r);
+      margin-bottom: 16px; display: none;
+    }
+    .hint { margin-top: 20px; font-size: 11px; color: var(--text-2); line-height: 1.6; }
+    .hint code { background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">💡</div>
+    <h1>掌柜智库</h1>
+    <p class="sub">企业 RAG 知识库 · 请登录后继续</p>
+    <div class="err" id="errBox"></div>
+    <form id="loginForm">
+      <label for="username">用户名</label>
+      <input type="text" id="username" name="username" autocomplete="username" placeholder="admin" required />
+      <label for="password">密码</label>
+      <input type="password" id="password" name="password" autocomplete="current-password" placeholder="••••••••" required />
+      <label class="remember">
+        <input type="checkbox" id="rememberMe" />
+        记住密码（30 天内免登录）
+      </label>
+      <button type="submit" class="btn" id="submitBtn">登 录</button>
+    </form>
+    <div class="hint">
+      测试账号：<code>admin</code> / <code>admin123</code><br />
+      产品A：<code>user_a</code> / <code>user123</code><br />
+      产品B：<code>user_b</code> / <code>user123</code>
+    </div>
+  </div>
+  <script src="/static/auth.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const redirect = params.get('redirect') || RagAuth.queryHomeUrl();
+
+    if (RagAuth.getAccessToken()) {
+      RagAuth.fetchMe().then(() => { location.href = redirect; }).catch(() => {});
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errBox = document.getElementById('errBox');
+      const btn = document.getElementById('submitBtn');
+      errBox.style.display = 'none';
+      btn.disabled = true;
+      try {
+        await RagAuth.login(
+          document.getElementById('username').value.trim(),
+          document.getElementById('password').value,
+          document.getElementById('rememberMe').checked
+        );
+        location.href = redirect;
+      } catch (err) {
+        errBox.textContent = err.message || '登录失败';
+        errBox.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
