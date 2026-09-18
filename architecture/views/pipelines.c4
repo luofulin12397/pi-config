@@ -1,0 +1,67 @@
+// 视图：两条管线（节点级时序，B 方向细化）
+views {
+  // ── 导入链路：7 节点 + 四阶段进度 ────────────────────────────────────────
+  dynamic view importFlow {
+    title '导入链路（7 节点）'
+    description 'PDF 走 MinerU，Word/TXT/MD 走 M4 新增的 Markdown 转换分支，其后共用切片/向量化/入库'
+    knowledgeAdmin -> console.knowledgePanel '上传 PDF / Word / TXT'
+    console.knowledgePanel -> backend.apiLayer.importServer 'POST /upload（:55000）'
+    backend.apiLayer.importServer -> backend.processLayer.importGraph 'invoke_graph()'
+    backend.processLayer.importGraph -> backend.processLayer.importNodes.nodeEntry '1. 文件类型分发'
+    alt {
+      when 'PDF' {
+        backend.processLayer.importNodes.nodeEntry -> backend.processLayer.importNodes.nodePdfToMd '2a. MinerU → Markdown'
+      }
+      else 'Word / TXT / MD' {
+        backend.processLayer.importNodes.nodeEntry -> backend.ragLayer.importDomain.textConvertService '2b. 转 Markdown（M4）'
+      }
+    }
+    backend.processLayer.importNodes.nodePdfToMd -> backend.processLayer.importNodes.nodeMdImg '3. 图片描述增强'
+    backend.processLayer.importNodes.nodeMdImg -> backend.processLayer.importNodes.nodeDocumentSplit '4. 切片'
+    backend.processLayer.importNodes.nodeDocumentSplit -> backend.processLayer.importNodes.nodeItemNameRecognition '5. 主体名识别'
+    backend.processLayer.importNodes.nodeItemNameRecognition -> backend.processLayer.importNodes.nodeBgeEmbedding '6. BGE-M3 向量化'
+    backend.processLayer.importNodes.nodeBgeEmbedding -> backend.processLayer.importNodes.nodeImportMilvus '7. 写入 kb_chunks'
+    backend.processLayer.importNodes.nodeImportMilvus -> backend.apiLayer.importServer '四阶段进度：清洗/分块/向量化/入库'
+    backend.apiLayer.importServer -> console.knowledgePanel 'GET /status/{task_id}'
+  }
+
+  // ── 鉴权检索问答：12 节点，固化 D1/D2 决策 ──────────────────────────────
+  dynamic view qaFlow {
+    title '鉴权检索问答（12 节点 · D1 检索后过滤）'
+    description '放行切片才进 Prompt；拦截项只入审计，普通用户仅见「存在无权文档」提示（需求 2.9.4 / 2.9.8）'
+    employee -> console.qaWorkbench '提问'
+    console.qaWorkbench -> backend.apiLayer.queryServer 'POST /stream（SSE 短效 Token）'
+    backend.apiLayer.queryServer -> backend.processLayer.queryGraph 'invoke'
+    backend.processLayer.queryGraph -> backend.processLayer.queryNodes.nodeQueryCache '1. 缓存判断'
+    opt 'FAQ 缓存命中（管理员审核发布）或语义缓存命中' {
+      backend.processLayer.queryNodes.nodeQueryCache -> backend.infraLayer.persistence.faqRepository 'M3：审核后 FAQ 直出'
+      backend.processLayer.queryNodes.nodeQueryCache -> console.qaWorkbench '毫秒级返回，不入检索链路'
+    }
+    backend.processLayer.queryNodes.nodeQueryCache -> backend.processLayer.queryNodes.nodeHistoryCompress '2. 历史压缩'
+    backend.processLayer.queryNodes.nodeHistoryCompress -> backend.processLayer.queryNodes.nodeItemNameConfirm '3. 主体名提取'
+    backend.processLayer.queryNodes.nodeItemNameConfirm -> backend.processLayer.queryNodes.nodeAccessControl '4. 主体名预过滤（原逻辑）'
+    parallel {
+      backend.processLayer.queryNodes.nodeAccessControl -> backend.processLayer.queryNodes.nodeSearchEmbedding '5a. 稠密向量检索'
+      backend.processLayer.queryNodes.nodeAccessControl -> backend.processLayer.queryNodes.nodeSearchEmbeddingHyde '5b. HyDE 增强检索'
+      backend.processLayer.queryNodes.nodeAccessControl -> backend.processLayer.queryNodes.nodeWebSearchMcp '5c. Web 搜索'
+    }
+    backend.processLayer.queryNodes.nodeSearchEmbedding -> backend.processLayer.queryNodes.nodeRrf '6. RRF 三路融合'
+    backend.processLayer.queryNodes.nodeSearchEmbeddingHyde -> backend.processLayer.queryNodes.nodeRrf
+    backend.processLayer.queryNodes.nodeWebSearchMcp -> backend.processLayer.queryNodes.nodeRrf
+    backend.processLayer.queryNodes.nodeRrf -> backend.processLayer.queryNodes.nodeRerank '7. Rerank 精排'
+    backend.processLayer.queryNodes.nodeRerank -> backend.processLayer.queryNodes.nodePermFilter '8. ★四维权限过滤（检索后、Prompt 前）'
+    alt {
+      when '鉴权通过' {
+        backend.processLayer.queryNodes.nodePermFilter -> backend.processLayer.queryNodes.nodeAnswerOutput '9. 放行切片拼 Prompt'
+      }
+      else '鉴权拦截' {
+        backend.processLayer.queryNodes.nodePermFilter -> backend.infraLayer.persistence.qaLogRepository '仅记录拦截清单 + 回传受限提示'
+      }
+    }
+    backend.processLayer.queryNodes.nodeAnswerOutput -> llmProvider '10. 流式生成'
+    backend.processLayer.queryNodes.nodeAnswerOutput -> backend.processLayer.queryNodes.nodeSaveCache '11. 写回语义缓存'
+    backend.processLayer.queryNodes.nodeAnswerOutput -> backend.apiLayer.queryServer 'SSE：step / delta / refs / done'
+    backend.apiLayer.queryServer -> console.qaWorkbench '答案 + 引用卡片 + 权限提示'
+    backend.apiLayer.queryServer -> backend.infraLayer.persistence.qaLogRepository '审计落库（会话/用户/召回/通过/拦截/Token/耗时）'
+  }
+}

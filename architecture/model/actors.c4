@@ -1,0 +1,12 @@
+// 使用者与角色模型（需求 2.9.2 用户角色与权限）
+model {
+  employee = actor '普通用户' {
+    description '业务部门员工：检索提问、查看引用。默认无任何公开权限（默认拒绝）'
+  }
+  knowledgeAdmin = actor '知识管理员' {
+    description '知识维护、文档导入、FAQ 候选审核润色、缺口转补全任务'
+  }
+  sysAdmin = actor '系统管理员' {
+    description '用户/角色权限、组织部门、模型与系统配置；可见完整审计拦截清单'
+  }
+}

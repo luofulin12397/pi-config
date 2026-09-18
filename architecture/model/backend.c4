@@ -1,0 +1,418 @@
+// ═════════════════════════════════════════════════════════════════════════════
+// RAG 后端：app/ 单包 + 双进程（:55000 导入 / :55001 问答与管理）
+// 结构按真实目录树建模；metadata.path 相对外层仓库根，link 指向源码文件
+// 依据：ai_rag_knowbase-master/docs/architecture.md、findings.md「差距对照」、task_plan.md M1-M4
+// 注意：嵌套子元素必须与父元素同文件定义（LikeC4 跨文件不继承作用域）
+// ═════════════════════════════════════════════════════════════════════════════
+model {
+  backend = service 'RAG 后端（app/ 单包，双进程）' {
+    technology 'FastAPI + LangGraph + Milvus + MongoDB + uv'
+    description '两个 uvicorn 进程共用同一 app/ 包：导入（计算密集，PDF 解析慢）与问答/管理（I/O 密集，LLM 流式）分离，可独立扩缩容'
+    metadata { path 'ai_rag_knowbase-master/app' }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 入口层 api/：只负责 HTTP 路由与入参校验
+    // ─────────────────────────────────────────────────────────────────────────
+    apiLayer = module 'api/ 入口层（HTTP + DTO）' {
+      metadata { path 'app/api' }
+
+      importServer = module 'import_server.py（:55000 导入 HTTP 入口）' {
+        #reuse
+        metadata { path 'app/api/http/import_server.py' }
+        link ../../ai_rag_knowbase-master/app/api/http/import_server.py '源码'
+        description '文件上传、任务提交/状态查询/删除'
+      }
+      queryServer = module 'query_server.py（:55001 问答/SSE/静态页托管）' {
+        #reuse #M2
+        metadata { path 'app/api/http/query_server.py' }
+        link ../../ai_rag_knowbase-master/app/api/http/query_server.py '源码'
+        description '知识问答、SSE 流式、文档预览，并托管 /console 静态资源（单端口部署）'
+      }
+      adminRoutes = module 'admin_routes.py（管理接口）' {
+        #M1 #M2 #M3 #added
+        metadata { path 'app/api/http/admin_routes.py'; req '2.9.6' }
+        link ../../ai_rag_knowbase-master/app/api/http/admin_routes.py '源码'
+        description '知识台账/导入/切片预览/用户角色/组织/模型配置/FAQ 审核/缺口/看板（docs/api-contract.md 46 契约）'
+      }
+      authRoutes = module 'auth_routes.py（登录/刷新/登出/角色）' {
+        #reuse #M1
+        metadata { path 'app/api/http/auth_routes.py'; req '2.9.2' }
+        link ../../ai_rag_knowbase-master/app/api/http/auth_routes.py '源码'
+        description 'JWT 双 Token、SSE 专有短效 Token、/auth/me'
+      }
+      apiSchema = module 'schema/（auth/document/import/query DTO）' {
+        #reuse
+        metadata { path 'app/api/schema' }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 编排层 process/：LangGraph 有向图，节点只做编排、不写业务
+    // ─────────────────────────────────────────────────────────────────────────
+    processLayer = module 'process/ 编排层（LangGraph）' {
+      metadata { path 'app/process'; req '2.9.7' }
+
+      importGraph = module 'import_/agent/main_graph.py（导入图 · 7 节点）' {
+        #reuse #M4
+        metadata { path 'app/process/import_/agent/main_graph.py' }
+        link ../../ai_rag_knowbase-master/app/process/import_/agent/main_graph.py '源码'
+        description '串行 StateGraph：解析 → 图片增强 → 切片 → 主体识别 → 向量化 → 入库'
+      }
+      importNodes = module 'import_/agent/nodes/（7 个节点）' {
+        metadata { path 'app/process/import_/agent/nodes' }
+
+        nodeEntry = module 'node_entry.py（类型分发）' {
+          #reuse #M4 #refactor
+          metadata { path 'app/process/import_/agent/nodes/node_entry.py' }
+          link ../../ai_rag_knowbase-master/app/process/import_/agent/nodes/node_entry.py '源码'
+          description '判断 PDF/MD/Word/TXT，Word/TXT 分支为 M4 新增'
+        }
+        nodePdfToMd = module 'node_pdf_to_md.py（MinerU PDF→MD）' {
+          #reuse
+          metadata { path 'app/process/import_/agent/nodes/node_pdf_to_md.py' }
+        }
+        nodeMdImg = module 'node_md_img.py（图片描述增强 → MinIO）' {
+          #reuse
+          metadata { path 'app/process/import_/agent/nodes/node_md_img.py' }
+        }
+        nodeDocumentSplit = module 'node_document_split.py（章节/段落切片）' {
+          #reuse
+          metadata { path 'app/process/import_/agent/nodes/node_document_split.py' }
+        }
+        nodeItemNameRecognition = module 'node_item_name_recognition.py（主体名识别）' {
+          #reuse
+          metadata { path 'app/process/import_/agent/nodes/node_item_name_recognition.py' }
+        }
+        nodeBgeEmbedding = module 'node_bge_embedding.py（BGE-M3 稠密+稀疏）' {
+          #reuse
+          metadata { path 'app/process/import_/agent/nodes/node_bge_embedding.py' }
+        }
+        nodeImportMilvus = module 'node_import_milvus.py（写入 kb_chunks）' {
+          #reuse
+          metadata { path 'app/process/import_/agent/nodes/node_import_milvus.py' }
+        }
+      }
+
+      queryGraph = module 'query/agent/main_graph.py（问答图 · 12 节点）' {
+        #refactor
+        metadata { path 'app/process/query/agent/main_graph.py'; req '2.9.7' }
+        link ../../ai_rag_knowbase-master/app/process/query/agent/main_graph.py '源码'
+        description '入口缓存判断 → 并行三路召回 → RRF → Rerank → 四维过滤 → 生成；比原 11 节点多出 node_perm_filter'
+      }
+      queryNodes = module 'query/agent/nodes/（12 个节点）' {
+        metadata { path 'app/process/query/agent/nodes' }
+
+        nodeQueryCache = module 'node_query_cache.py（FAQ + 语义缓存，命中直出）' {
+          #reuse #M3 #refactor
+          metadata { path 'app/process/query/agent/nodes/node_query_cache.py'; req '2.9.4' }
+          link ../../ai_rag_knowbase-master/app/process/query/agent/nodes/node_query_cache.py '源码'
+          description '先查 faq_repository（审核发布后写入，M3 新增），再查语义缓存 cache_service'
+        }
+        nodeHistoryCompress = module 'node_history_compress.py（历史压缩摘要）' {
+          #reuse
+          metadata { path 'app/process/query/agent/nodes/node_history_compress.py' }
+        }
+        nodeItemNameConfirm = module 'node_item_name_confirm.py（主体名提取）' {
+          #reuse
+          metadata { path 'app/process/query/agent/nodes/node_item_name_confirm.py' }
+        }
+        nodeAccessControl = module 'node_access_control.py（主体名预过滤）' {
+          #reuse #refactor
+          metadata { path 'app/process/query/agent/nodes/node_access_control.py' }
+          description '原「按商品主体名预过滤」，M1 起不再是权限唯一入口，真正的鉴权在 node_perm_filter'
+        }
+        nodeSearchEmbedding = module 'node_search_embedding.py（稠密向量检索）' {
+          #reuse
+          metadata { path 'app/process/query/agent/nodes/node_search_embedding.py' }
+        }
+        nodeSearchEmbeddingHyde = module 'node_search_embedding_hyde.py（HyDE 增强检索）' {
+          #reuse
+          metadata { path 'app/process/query/agent/nodes/node_search_embedding_hyde.py' }
+        }
+        nodeWebSearchMcp = module 'node_web_search_mcp.py（百炼 Web 搜索 MCP）' {
+          #reuse
+          metadata { path 'app/process/query/agent/nodes/node_web_search_mcp.py' }
+        }
+        nodeRrf = module 'node_rrf.py（三路结果 RRF 融合）' {
+          #reuse
+          metadata { path 'app/process/query/agent/nodes/node_rrf.py' }
+        }
+        nodeRerank = module 'node_rerank.py（BGE-Reranker 精排）' {
+          #reuse
+          metadata { path 'app/process/query/agent/nodes/node_rerank.py' }
+        }
+        nodePermFilter = module 'node_perm_filter.py（★召回后四维过滤）' {
+          #M1 #added
+          metadata { path 'app/process/query/agent/nodes/node_perm_filter.py'; req '2.9.4' }
+          link ../../ai_rag_knowbase-master/app/process/query/agent/nodes/node_perm_filter.py '源码'
+          description 'M1 核心改造：位于混合检索之后、Prompt 组装之前；放行切片进上下文，拦截项只进审计（决策 D1/D2）'
+        }
+        nodeAnswerOutput = module 'node_answer_output.py（Prompt 组装 + SSE 生成 + 引用）' {
+          #reuse
+          metadata { path 'app/process/query/agent/nodes/node_answer_output.py' }
+        }
+        nodeSaveCache = module 'node_save_cache.py（写回语义缓存）' {
+          #reuse
+          metadata { path 'app/process/query/agent/nodes/node_save_cache.py' }
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 业务层 rag/：纯业务逻辑，不依赖 FastAPI
+    // ─────────────────────────────────────────────────────────────────────────
+    ragLayer = module 'rag/ 业务层（纯业务，不依赖 FastAPI）' {
+      metadata { path 'app/rag' }
+
+      importDomain = module 'import_/（导入业务，10 个服务）' {
+        metadata { path 'app/rag/import_' }
+
+        entryService = module 'entry_service.py（解析分发入口）' {
+          #reuse #M4 #refactor
+          metadata { path 'app/rag/import_/entry_service.py' }
+          link ../../ai_rag_knowbase-master/app/rag/import_/entry_service.py '源码'
+          description '按文件类型分发；M4 起调用 text_convert_service 处理 Word/TXT'
+        }
+        pdfParseService = module 'pdf_parse_service.py（MinerU 调用）' {
+          #reuse #M4 #refactor
+          metadata { path 'app/rag/import_/pdf_parse_service.py' }
+        }
+        textConvertService = module 'text_convert_service.py（Word/TXT→Markdown）' {
+          #M4 #added
+          metadata { path 'app/rag/import_/text_convert_service.py'; req '2.9.6' }
+          link ../../ai_rag_knowbase-master/app/rag/import_/text_convert_service.py '源码'
+          description 'M4 新增：统一转 Markdown 后复用既有解析/切片链路'
+        }
+        splitService = module 'split_service.py（切片）' {
+          #reuse
+          metadata { path 'app/rag/import_/split_service.py' }
+        }
+        itemNameService = module 'item_name_service.py（主体名识别）' {
+          #reuse
+          metadata { path 'app/rag/import_/item_name_service.py' }
+        }
+        embeddingService = module 'embedding_service.py（BGE-M3 向量化）' {
+          #reuse
+          metadata { path 'app/rag/import_/embedding_service.py' }
+        }
+        indexService = module 'index_service.py（Milvus 索引写入）' {
+          #reuse
+          metadata { path 'app/rag/import_/index_service.py' }
+        }
+        enrichMarkdownImages = module 'enrich_markdown_images.py（图片描述回填）' {
+          #reuse
+          metadata { path 'app/rag/import_/enrich_markdown_images.py' }
+        }
+        outputCleanupService = module 'output_cleanup_service.py（产物清理）' {
+          #reuse
+          metadata { path 'app/rag/import_/output_cleanup_service.py' }
+        }
+        importConfig = module 'config.py（导入侧配置）' {
+          #reuse
+          metadata { path 'app/rag/import_/config.py' }
+        }
+      }
+
+      queryDomain = module 'query/（查询业务，13 个服务）' {
+        metadata { path 'app/rag/query' }
+
+        accessControlService = module 'access_control_service.py（★四维过滤业务）' {
+          #M1 #refactor
+          metadata { path 'app/rag/query/access_control_service.py'; req '2.9.4' }
+          link ../../ai_rag_knowbase-master/app/rag/query/access_control_service.py '源码'
+          description '把召回切片按四维权限判定结果拆成 allowed / denied 两组'
+        }
+        answerService = module 'answer_service.py（Prompt 组装 + 生成）' {
+          #reuse
+          metadata { path 'app/rag/query/answer_service.py' }
+        }
+        cacheService = module 'cache_service.py（语义缓存读写）' {
+          #reuse
+          metadata { path 'app/rag/query/cache_service.py' }
+        }
+        citationUtils = module 'citation_utils.py（引用与图片提取）' {
+          #reuse
+          metadata { path 'app/rag/query/citation_utils.py' }
+        }
+        documentPreviewService = module 'document_preview_service.py（文档预览）' {
+          #reuse
+          metadata { path 'app/rag/query/document_preview_service.py' }
+        }
+        embeddingSearchService = module 'embedding_search_service.py（稠密检索）' {
+          #reuse
+          metadata { path 'app/rag/query/embedding_search_service.py' }
+        }
+        historyCompressService = module 'history_compress_service.py（历史压缩）' {
+          #reuse
+          metadata { path 'app/rag/query/history_compress_service.py' }
+        }
+        hydeSearchService = module 'hyde_search_service.py（HyDE 检索）' {
+          #reuse
+          metadata { path 'app/rag/query/hyde_search_service.py' }
+        }
+        itemNameConfirmService = module 'item_name_confirm_service.py（主体名确认）' {
+          #reuse
+          metadata { path 'app/rag/query/item_name_confirm_service.py' }
+        }
+        rerankService = module 'rerank_service.py（精排）' {
+          #reuse
+          metadata { path 'app/rag/query/rerank_service.py' }
+        }
+        rrfService = module 'rrf_service.py（RRF 融合）' {
+          #reuse
+          metadata { path 'app/rag/query/rrf_service.py' }
+        }
+        webSearchService = module 'web_search_service.py（Web 检索）' {
+          #reuse
+          metadata { path 'app/rag/query/web_search_service.py' }
+        }
+        queryConfig = module 'config.py（查询侧配置）' {
+          #reuse
+          metadata { path 'app/rag/query/config.py' }
+        }
+      }
+
+      sediment = module 'sediment/（M3 知识沉淀与运营，2 个服务）' {
+        #M3
+        metadata { path 'app/rag/sediment'; req '2.9.4' }
+
+        miningService = module 'mining_service.py（提问聚类 → 候选 FAQ / 缺口同步）' {
+          #M3 #added
+          metadata { path 'app/rag/sediment/mining_service.py' }
+          link ../../ai_rag_knowbase-master/app/rag/sediment/mining_service.py '源码'
+          description 'run_mining：近 N 天日志向量相似贪心聚类，达频次阈值生成候选 FAQ；sync_gaps：未命中日志聚合入缺口池'
+        }
+        dashboardService = module 'dashboard_service.py（看板聚合）' {
+          #M3 #added
+          metadata { path 'app/rag/sediment/dashboard_service.py'; req '2.9.8' }
+          link ../../ai_rag_knowbase-master/app/rag/sediment/dashboard_service.py '源码'
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 基础设施层 infra/：对外部系统的统一封装
+    // ─────────────────────────────────────────────────────────────────────────
+    infraLayer = module 'infra/ 基础设施层' {
+      metadata { path 'app/infra' }
+
+      security = module 'security/（认证与鉴权）' {
+        metadata { path 'app/infra/security' }
+
+        permEngine = module 'perm_engine.py（★四维权限引擎）' {
+          #M1 #added
+          metadata { path 'app/infra/security/perm_engine.py'; req '2.9.2' }
+          link ../../ai_rag_knowbase-master/app/infra/security/perm_engine.py '源码'
+          description 'global/department/role/user 四维 OR 充分条件判定，默认拒绝；规则变更即时生效并同步缓存'
+        }
+        authCore = module 'auth_startup + deps + jwt_utils + password_utils + role_utils' {
+          #reuse
+          metadata { path 'app/infra/security' }
+          description 'JWT 双 Token 签发解析、FastAPI CurrentUser 依赖、bcrypt、RBAC 角色常量'
+        }
+      }
+
+      persistence = module 'persistence/（9 个 Repository）' {
+        metadata { path 'app/infra/persistence' }
+
+        authRepository = module 'auth_repository.py（用户/角色/Token）' {
+          #reuse
+          metadata { path 'app/infra/persistence/auth_repository.py' }
+        }
+        permissionRepository = module 'permission_repository.py（权限规则）' {
+          #M1 #refactor
+          metadata { path 'app/infra/persistence/permission_repository.py'; req '2.9.2' }
+          description '由单维 allowed_roles 扩展为四维权限模型'
+        }
+        knowledgeRepository = module 'knowledge_repository.py（知识台账）' {
+          #M1 #added
+          metadata { path 'app/infra/persistence/knowledge_repository.py' }
+        }
+        importTaskRepository = module 'import_task_repository.py（导入任务）' {
+          #reuse
+          metadata { path 'app/infra/persistence/import_task_repository.py' }
+        }
+        historyRepository = module 'history_repository.py（对话历史）' {
+          #reuse
+          metadata { path 'app/infra/persistence/history_repository.py' }
+        }
+        qaCacheRepository = module 'qa_cache_repository.py（语义缓存）' {
+          #reuse
+          metadata { path 'app/infra/persistence/qa_cache_repository.py' }
+        }
+        qaLogRepository = module 'qa_log_repository.py（问答审计日志）' {
+          #M3 #added
+          metadata { path 'app/infra/persistence/qa_log_repository.py'; req '2.9.8' }
+          link ../../ai_rag_knowbase-master/app/infra/persistence/qa_log_repository.py '源码'
+          description '落库需求 2.9.8 全字段：会话ID/用户/提问/召回列表/鉴权通过列表/鉴权拦截列表/Token/耗时'
+        }
+        faqRepository = module 'faq_repository.py（FAQ 与候选）' {
+          #M3 #added
+          metadata { path 'app/infra/persistence/faq_repository.py'; req '2.9.4' }
+          description 'match() 供问答缓存命中、record_hit() 计数、审核状态流转'
+        }
+        gapRepository = module 'gap_repository.py（知识缺口池）' {
+          #M3 #added
+          metadata { path 'app/infra/persistence/gap_repository.py'; req '2.9.4' }
+        }
+      }
+
+      vectorstore = module 'vectorstore/milvus_gateway.py（集合管理/检索）' {
+        #reuse
+        metadata { path 'app/infra/vectorstore/milvus_gateway.py' }
+      }
+      objectStorage = module 'object_storage/minio_gateway.py（图片对象存储）' {
+        #reuse
+        metadata { path 'app/infra/object_storage/minio_gateway.py' }
+      }
+      llmProviders = module 'llm/providers.py（文本/视觉/Embedding/Reranker）' {
+        #reuse
+        metadata { path 'app/infra/llm/providers.py' }
+        description '统一 OpenAI 兼容入口，可切换通义千问/DeepSeek'
+      }
+      infraConfig = module 'config/providers.py（基础设施配置装配）' {
+        #reuse
+        metadata { path 'app/infra/config/providers.py' }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 共享层 shared/：仅依赖第三方 SDK，无内部依赖
+    // ─────────────────────────────────────────────────────────────────────────
+    sharedLayer = module 'shared/ 共享层（仅依赖第三方 SDK）' {
+      metadata { path 'app/shared' }
+
+      clients = module 'clients/（Mongo/Milvus/MinIO/Redis 客户端）' {
+        #reuse
+        metadata { path 'app/shared/clients' }
+        description 'mongo_auth/history/qa_cache_utils、milvus_utils、minio_utils、redis_client（可选，未配回退内存）'
+      }
+      settings = module 'config/（11 个 Settings 配置）' {
+        #reuse
+        metadata { path 'app/shared/config' }
+      }
+      models = module 'model/（embedding/lm/reranker 调用封装）' {
+        #reuse
+        metadata { path 'app/shared/model' }
+      }
+      runtime = module 'runtime/（loguru 日志 + Prompt 加载）' {
+        #reuse
+        metadata { path 'app/shared/runtime' }
+      }
+      tools = module 'tool/（BGE-M3 / Reranker 模型下载）' {
+        #reuse
+        metadata { path 'app/shared/tool' }
+      }
+      pipelineEvents = module 'utils/pipeline_events.py + sse_utils.py（SSE step 事件）' {
+        #M1 #added
+        metadata { path 'app/shared/utils/pipeline_events.py' }
+        link ../../ai_rag_knowbase-master/app/shared/utils/pipeline_events.py '源码'
+        description 'M1 新增：把 LangGraph 节点进度映射为 step/delta/refs/done 四类 SSE 事件，前端管线步骤条'
+      }
+      miscUtils = module 'utils/（任务/限流/格式化/路径等）' {
+        #reuse
+        metadata { path 'app/shared/utils' }
+      }
+    }
+  }
+}

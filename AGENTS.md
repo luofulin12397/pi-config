@@ -19,6 +19,8 @@
 - `frontend-demo` 验证方式：`node --check js/*.js` + node 冒烟断言（stub window 后直接跑 services）
 - 需求要点、差距分析、demo↔后端模块映射见 `findings.md`，不要重复分析
 - 原则沿用全局：按痛渐进、外科手术式改动、完成前运行相称的验证
+- 架构即代码（LikeC4）：`architecture/` 描述全平台（角色/双服务/存储/外部依赖）；接口契约（api-contract.md）或服务组件变更时同步更新，`npm run format:check` 验证。写 `.c4` 前先加载 skill `likec4-dsl`（`.pi/skills/`）
+- 架构查询 MCP：`npm run mcp` 把架构模型暴露给 Agent，端点 `http://127.0.0.1:33335/mcp`，只读查询勿改模型。客户端传输类型**必须选 streamable HTTP/HTTP**：选 SSE 会请求不存在的 `/sse` 并报 `-32000 Method not found`（部分中文客户端汉化为“未找到方法。”）；只支持 SSE/stdio 的客户端改用 stdio：`npx likec4 mcp`
 
 ## Agent skills
 

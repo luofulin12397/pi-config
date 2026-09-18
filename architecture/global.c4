@@ -1,0 +1,23 @@
+// 全局可复用样式：按里程碑与变更性质着色，供各视图 global style 引用
+global {
+  styleGroup milestones {
+    style element.tag = #M1 {
+      color blue
+    }
+    style element.tag = #M2 {
+      color green
+    }
+    style element.tag = #M3 {
+      color amber
+    }
+    style element.tag = #M4 {
+      color indigo
+    }
+    style element.tag = #added {
+      border dashed
+    }
+    style element.tag = #refactor {
+      border dotted
+    }
+  }
+}

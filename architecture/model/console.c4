@@ -1,0 +1,44 @@
+// 控制台 SPA（frontend-demo 已验证交互 → console/ 落地，M2）
+// 真实代码：ai_rag_knowbase-master/console/（Vue3 + ECharts，本地 vendor 离线可用）
+model {
+  console = frontend '控制台 SPA（console/）' {
+    #M2
+    technology 'Vue 3 + ECharts（本地 vendor）'
+    metadata { path 'ai_rag_knowbase-master/console/'; req '2.9.3' }
+    link ../../ai_rag_knowbase-master/console/index.html '源码入口'
+    description '单端口部署：静态资源由问答服务托管在 /console/；管理类请求同源 :55001，上传/进度走 :55000（需求 2.9.3 / 2.9.5）'
+
+    // 功能页面（需求 2.9.3 页面需求）
+    login = module '登录页' {
+      #M2
+      metadata { req '2.9.2' }
+    }
+    qaWorkbench = module '问答工作台（SSE 流式 + 引用卡片 + 拦截提示）' {
+      #M2
+      metadata { req '2.9.7' }
+    }
+    knowledgePanel = module '知识维护与导入中心（台账/导入/编辑/切片预览/四维权限弹窗）' {
+      #M2
+      metadata { req '2.9.6' }
+    }
+    sessionSidebar = module '会话侧栏（历史会话 + 引用恢复）' {
+      #M2
+    }
+    orgSettingsPanel = module '组织与系统配置（用户 CRUD / 角色权限编辑 / 模型配置）' {
+      #M2
+      metadata { req '2.9.2' }
+    }
+    opsDashboardPanel = module '运营看板（PV/UV / Token 趋势 / 延时分布 / 高频问题 TOP）' {
+      #M3
+      metadata { req '2.9.8' }
+    }
+    faqReviewPanel = module 'FAQ 候选审核与发布' {
+      #M3
+      metadata { req '2.9.4' }
+    }
+    gapPoolPanel = module '知识缺口池与一键转任务' {
+      #M3
+      metadata { req '2.9.4' }
+    }
+  }
+}

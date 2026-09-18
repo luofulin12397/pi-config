@@ -1,0 +1,84 @@
+// 视图：后端分层与逐层细化（开发导航主入口）
+views {
+  // ── 五层结构（总览）──────────────────────────────────────────────────────
+  view backendLayers of backend {
+    title '后端五层结构'
+    description 'api 入口层 / process 编排层 / rag 业务层 / infra 基础设施层 / shared 共享层'
+    include *
+    global style milestones
+  }
+
+  // ── 各层细化 ─────────────────────────────────────────────────────────────
+  view backendApi of backend.apiLayer {
+    title 'api/ 入口层（4 个 HTTP 模块 + DTO）'
+    include *
+    include -> *
+    global style milestones
+  }
+
+  view backendProcess of backend.processLayer {
+    title 'process/ 编排层（两条 LangGraph 管线）'
+    include *
+    global style milestones
+  }
+
+  view backendRag of backend.ragLayer {
+    title 'rag/ 业务层（三组业务服务）'
+    include *
+    include mineru, llmProvider, webSearch, embeddingModel, rerankerModel, milvus, mongo
+    global style milestones
+  }
+
+  view backendInfra of backend.infraLayer {
+    title 'infra/ 基础设施层'
+    include *
+    include mongo, milvus, minio, redis
+    global style milestones
+  }
+
+  view backendShared of backend.sharedLayer {
+    title 'shared/ 共享层（仅依赖第三方 SDK）'
+    include *
+    include mongo, milvus, minio, redis
+    global style milestones
+  }
+
+  // ── 关键子模块 ───────────────────────────────────────────────────────────
+  view backendPersistence of backend.infraLayer.persistence {
+    title 'persistence/ 9 个 Repository ↔ MongoDB 集合'
+    include *
+    include mongo
+    global style milestones
+  }
+
+  view backendSecurity of backend.infraLayer.security {
+    title 'security/ 认证与四维权限引擎'
+    include *
+    include -> *
+    global style milestones
+  }
+
+  view importDomain of backend.ragLayer.importDomain {
+    title 'rag/import_ 导入业务（10 个服务）'
+    include *
+    global style milestones
+  }
+
+  view queryDomain of backend.ragLayer.queryDomain {
+    title 'rag/query 查询业务（13 个服务）'
+    include *
+    global style milestones
+  }
+
+  view importNodes of backend.processLayer.importNodes {
+    title '导入图 7 个节点'
+    include *
+    global style milestones
+  }
+
+  view queryNodes of backend.processLayer.queryNodes {
+    title '问答图 12 个节点'
+    include *
+    global style milestones
+  }
+}

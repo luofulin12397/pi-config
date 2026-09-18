@@ -1,0 +1,9 @@
+// 视图：平台总览
+views {
+  view index {
+    title '平台总览（Landscape）'
+    description '角色 → 控制台 → 双进程后端 → 存储与外部依赖。细看请用「后端分层」及各层/管线视图'
+    include *
+    global style milestones
+  }
+}

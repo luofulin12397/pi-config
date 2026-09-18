@@ -1,0 +1,47 @@
+// 部署模型：云服务器 + Docker Compose 数据服务 + 宿主机 uv 进程
+// 事实依据：deploy/docker-compose.yml 只定义 mongo / etcd / minio / milvus 四个数据服务；
+//          两个 FastAPI 服务为宿主机进程（uv run），非容器
+// 语法要点：部署节点内属性（technology/metadata）必须写在 instanceOf 之前
+deployment {
+  host cloudServer '云服务器' {
+    container composeStack 'Docker Compose（deploy/docker-compose.yml）' {
+      technology 'docker compose'
+
+      container mongoContainer 'rag-mongo' {
+        technology 'mongo:7'
+        metadata { port '27017'; volume 'rag-mongo-data' }
+        instanceOf mongo
+      }
+      container etcdContainer 'rag-etcd' {
+        technology 'quay.io/coreos/etcd:v3.5.14'
+        metadata { volume 'rag-etcd-data' }
+        instanceOf etcd
+      }
+      container minioContainer 'rag-minio' {
+        technology 'minio/minio:RELEASE.2023-03-20'
+        metadata { port '9000 / 9001'; volume 'rag-minio-data' }
+        instanceOf minio
+      }
+      container milvusContainer 'rag-milvus' {
+        technology 'milvusdb/milvus:v2.4.15'
+        metadata { port '19530 / 9091'; volume 'rag-milvus-data' }
+        instanceOf milvus
+      }
+    }
+
+    appProcess hostRuntime '宿主机进程（uv run，非容器）' {
+      importProc = instanceOf backend.apiLayer.importServer {
+        metadata { port '55000' }
+      }
+      queryProc = instanceOf backend.apiLayer.queryServer {
+        metadata { port '55001'; note '同时托管 /console 静态资源' }
+      }
+      consoleAssets = instanceOf console {
+        metadata { servedAt '/console/' }
+      }
+    }
+
+    // 宿主机两个进程连本地容器端口
+    hostRuntime -> composeStack 'TCP：27017 / 19530 / 9000（Docker 端口映射）'
+  }
+}

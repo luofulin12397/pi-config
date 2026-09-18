@@ -1,0 +1,18 @@
+{
+  "name": "rag-knowledge-base",
+  "private": true,
+  "description": "RAG 智库管理平台 —— 架构即代码（LikeC4）工具链，源文件见 architecture/",
+  "scripts": {
+    "dev": "likec4 dev ./architecture",
+    "build": "likec4 build ./architecture -o dist/architecture",
+    "build:single": "likec4 build ./architecture -o dist/architecture-single --output-single-file --base ./",
+    "preview": "likec4 preview dist/architecture",
+    "export:png": "likec4 export png ./architecture -o docs/diagrams",
+    "format": "likec4 format ./architecture",
+    "format:check": "likec4 format --check ./architecture",
+    "mcp": "likec4 mcp --http ./architecture"
+  },
+  "devDependencies": {
+    "likec4": "^1.59.3"
+  }
+}

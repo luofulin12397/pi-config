@@ -1,0 +1,39 @@
+// 视图：按里程碑与变更性质切片（C 方向）
+// 注意：LikeC4 1.59.3 不支持 `**` / `_` 通配（那是 main 分支新语法），
+//      因此这里用显式 FQN 清单。新增带标签的元素后，请同步补进对应视图。
+views {
+  view milestoneM1 {
+    title 'M1 · 四维权限引擎与鉴权过滤'
+    description '六票：判定引擎 / 知识台账 / 权限配置 / auth-me / 管线过滤★ / SSE 事件流'
+    include backend.infraLayer.security.permEngine, backend.infraLayer.persistence.permissionRepository, backend.infraLayer.persistence.knowledgeRepository, backend.processLayer.queryNodes.nodePermFilter, backend.ragLayer.queryDomain.accessControlService, backend.sharedLayer.pipelineEvents, backend.apiLayer.authRoutes, backend.apiLayer.adminRoutes
+    global style milestones
+  }
+
+  view milestoneM2 {
+    title 'M2 · 控制台 SPA 与知识维护'
+    description '登录+问答工作台接真实后端、知识维护与导入中心、组织与系统配置（单端口 /console/）'
+    include console, backend.apiLayer.queryServer, backend.apiLayer.adminRoutes
+    global style milestones
+  }
+
+  view milestoneM3 {
+    title 'M3 · 知识沉淀与运营'
+    description '审计落库 / FAQ 缓存直出★ / 挖掘与缺口池 / 运营看板'
+    include backend.infraLayer.persistence.qaLogRepository, backend.infraLayer.persistence.faqRepository, backend.infraLayer.persistence.gapRepository, backend.ragLayer.sediment.miningService, backend.ragLayer.sediment.dashboardService, backend.processLayer.queryNodes.nodeQueryCache, backend.apiLayer.adminRoutes, console.faqReviewPanel, console.gapPoolPanel, console.opsDashboardPanel
+    global style milestones
+  }
+
+  view milestoneM4 {
+    title 'M4 · 文档解析扩展'
+    description 'Word/TXT/DOCX 分支（统一转 Markdown 复用链路）+ PDF 链路修复（MinerU URL）'
+    include backend.ragLayer.importDomain.textConvertService, backend.ragLayer.importDomain.entryService, backend.ragLayer.importDomain.pdfParseService, backend.processLayer.importNodes.nodeEntry, backend.processLayer.importGraph
+    global style milestones
+  }
+
+  view changed {
+    title '新增与改造清单（M1-M4）'
+    description '虚线边框 = 新增（added），点线边框 = 改造（refactor）；未列出的模块为直接复用现有能力'
+    include backend.apiLayer.adminRoutes, backend.infraLayer.security.permEngine, backend.infraLayer.persistence.knowledgeRepository, backend.infraLayer.persistence.qaLogRepository, backend.infraLayer.persistence.faqRepository, backend.infraLayer.persistence.gapRepository, backend.ragLayer.sediment.miningService, backend.ragLayer.sediment.dashboardService, backend.ragLayer.importDomain.textConvertService, backend.sharedLayer.pipelineEvents, backend.processLayer.queryNodes.nodePermFilter, backend.processLayer.queryNodes.nodeQueryCache, backend.processLayer.queryNodes.nodeAccessControl, backend.processLayer.queryGraph, backend.ragLayer.queryDomain.accessControlService, backend.infraLayer.persistence.permissionRepository, backend.ragLayer.importDomain.entryService, backend.ragLayer.importDomain.pdfParseService
+    global style milestones
+  }
+}

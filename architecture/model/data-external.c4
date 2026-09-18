@@ -1,0 +1,58 @@
+// 存储与外部依赖（含真实端口与集合名，供开发导航）
+// 依据：deploy/docker-compose.yml（只跑 4 个数据服务）+ findings.md §7 新增集合
+model {
+  mongo = storage 'MongoDB 7（:27017）' {
+    style {
+      icon tech:mongodb
+    }
+    metadata {
+      path 'ai_rag_knowbase-master/deploy/docker-compose.yml'
+      container 'rag-mongo'
+      port '27017'
+      volume 'rag-mongo-data'
+    }
+    description 'users/roles、permissions(四维规则)、knowledge_units(台账)、departments、import_tasks、chat 历史、qa_cache(语义缓存)、qa_logs(审计)、faqs+faq_candidates、gaps(缺口池)、settings'
+  }
+  milvus = storage 'Milvus v2.4.15（:19530）' {
+    metadata {
+      container 'rag-milvus'
+      port '19530'
+      volume 'rag-milvus-data'
+      collections 'kb_chunks / kb_item_names'
+    }
+    description 'kb_chunks 存放稠密(1024维)+稀疏混合向量；kb_item_names 主体名'
+  }
+  etcd = storage 'etcd（:2379）' {
+    metadata { container 'rag-etcd'; note 'Milvus 元数据与协调组件，随 compose 内置' }
+  }
+  minio = storage 'MinIO（:9000 / 控制台 :9001）' {
+    metadata { container 'rag-minio'; volume 'rag-minio-data' }
+    description '文档图片对象存储；MD 中的图片替换为可访问 URL 后进入切片'
+  }
+  redis = storage 'Redis（可选）' {
+    style {
+      icon tech:redis
+    }
+    metadata { note '未在 compose 中；未配置时跨 worker SSE 会话回退内存' }
+  }
+
+  llmProvider = external 'LLM 服务（OpenAI 兼容）' {
+    style {
+      icon tech:openai
+    }
+    metadata { note 'DeepSeek / 通义千问等；文本生成 + 视觉模型用于图片描述' }
+  }
+  mineru = external 'MinerU API（PDF→Markdown）' {
+    metadata { config 'MINERU_* / app/shared/config/mineru_config.py' }
+  }
+  webSearch = external 'DashScope WebSearch MCP（百炼）' {
+    metadata { config 'app/shared/config/bailian_mcp_config.py' }
+  }
+
+  embeddingModel = aiengine 'BGE-M3（本地加载）' {
+    metadata { note '稠密+稀疏混合向量，入库与查询共用；下载脚本 app/shared/tool/download_bgem3.py' }
+  }
+  rerankerModel = aiengine 'BGE-Reranker-v2-m3（本地加载）' {
+    metadata { note 'Cross-Encoder 精排；下载脚本 app/shared/tool/download_reranker.py' }
+  }
+}

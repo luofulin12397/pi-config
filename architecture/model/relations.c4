@@ -1,0 +1,95 @@
+// 依赖关系（全部按真实 import/调用核实；跨文件引用用完整 FQN）
+model {
+  // ── 使用者 → 控制台 ──────────────────────────────────────────────────────
+  employee -> console.qaWorkbench '提问 / 检索'
+  knowledgeAdmin -> console.knowledgePanel '知识维护 · 导入'
+  knowledgeAdmin -> console.faqReviewPanel 'FAQ 候选审核'
+  knowledgeAdmin -> console.gapPoolPanel '缺口转任务'
+  sysAdmin -> console.orgSettingsPanel '用户 / 角色 / 组织配置'
+  sysAdmin -> console.opsDashboardPanel '运营看板'
+
+  // ── 控制台 → 后端入口 ────────────────────────────────────────────────────
+  console -> backend.apiLayer.queryServer 'REST + SSE（同源 :55001）'
+  console -> backend.apiLayer.importServer '上传 / 四阶段进度（:55000）'
+
+  // ── 入口层 → 编排层 / 基础设施 ───────────────────────────────────────────
+  backend.apiLayer.queryServer -> console '托管 /console 静态资源（单端口）'
+  backend.apiLayer.importServer -> backend.processLayer.importGraph '触发导入图'
+  backend.apiLayer.queryServer -> backend.processLayer.queryGraph '触发问答图'
+  backend.apiLayer.queryServer -> backend.infraLayer.persistence.qaLogRepository '审计落库（需求 2.9.8 全字段）'
+  backend.apiLayer.queryServer -> backend.sharedLayer.pipelineEvents '推送 SSE step/delta/refs/done'
+  backend.apiLayer.authRoutes -> backend.infraLayer.security.authCore 'JWT 校验 / 签发'
+  backend.apiLayer.adminRoutes -> backend.infraLayer.security.permEngine '权限配置校验'
+  backend.apiLayer.adminRoutes -> backend.infraLayer.persistence.knowledgeRepository '台账 CRUD'
+  backend.apiLayer.adminRoutes -> backend.infraLayer.persistence.faqRepository 'FAQ 审核发布'
+  backend.apiLayer.adminRoutes -> backend.infraLayer.persistence.gapRepository '缺口池'
+  backend.apiLayer.adminRoutes -> backend.infraLayer.persistence.qaLogRepository '看板/审计查询'
+  backend.apiLayer.adminRoutes -> backend.ragLayer.sediment.miningService '手动触发挖掘'
+  backend.apiLayer.adminRoutes -> backend.processLayer.importGraph '缺口转任务 → 补导入'
+
+  // ── 层间依赖（对齐 docs/architecture.md 模块依赖关系表）─────────────────
+  backend.apiLayer -> backend.infraLayer.persistence 'Repository 层'
+  backend.apiLayer -> backend.infraLayer.security '认证依赖'
+  backend.apiLayer -> backend.processLayer '调用图'
+  backend.processLayer -> backend.ragLayer '节点只编排，业务在 rag/'
+  backend.ragLayer -> backend.infraLayer '通过 infra 访问外部系统'
+  backend.ragLayer -> backend.sharedLayer '配置 / 客户端 / 模型封装'
+  backend.infraLayer -> backend.sharedLayer '基础层仅依赖 shared'
+  backend.apiLayer -> backend.sharedLayer '运行时工具'
+
+  // ── 导入图：节点 → 业务服务 ─────────────────────────────────────────────
+  backend.processLayer.importNodes.nodeEntry -> backend.ragLayer.importDomain.entryService '文件类型分发'
+  backend.processLayer.importNodes.nodePdfToMd -> backend.ragLayer.importDomain.pdfParseService
+  backend.processLayer.importNodes.nodeMdImg -> backend.ragLayer.importDomain.enrichMarkdownImages '图片描述增强'
+  backend.processLayer.importNodes.nodeDocumentSplit -> backend.ragLayer.importDomain.splitService
+  backend.processLayer.importNodes.nodeItemNameRecognition -> backend.ragLayer.importDomain.itemNameService
+  backend.processLayer.importNodes.nodeBgeEmbedding -> backend.ragLayer.importDomain.embeddingService
+  backend.processLayer.importNodes.nodeImportMilvus -> backend.ragLayer.importDomain.indexService '写入 kb_chunks'
+  backend.processLayer.importGraph -> backend.processLayer.importNodes '7 节点串行'
+
+  // ── 问答图：节点 → 业务服务（★为 D1 鉴权链路）───────────────────────────
+  backend.processLayer.queryGraph -> backend.processLayer.queryNodes '12 节点'
+  backend.processLayer.queryNodes.nodeQueryCache -> backend.infraLayer.persistence.faqRepository '「人工审核 FAQ」缓存命中（M3 新增）'
+  backend.processLayer.queryNodes.nodeQueryCache -> backend.ragLayer.queryDomain.cacheService '「自动语义缓存」命中'
+  backend.processLayer.queryNodes.nodeHistoryCompress -> backend.ragLayer.queryDomain.historyCompressService
+  backend.processLayer.queryNodes.nodeItemNameConfirm -> backend.ragLayer.queryDomain.itemNameConfirmService
+  backend.processLayer.queryNodes.nodeAccessControl -> backend.ragLayer.queryDomain.accessControlService '主体名预过滤（原逻辑，保留）'
+  backend.processLayer.queryNodes.nodeSearchEmbedding -> backend.ragLayer.queryDomain.embeddingSearchService
+  backend.processLayer.queryNodes.nodeSearchEmbeddingHyde -> backend.ragLayer.queryDomain.hydeSearchService
+  backend.processLayer.queryNodes.nodeWebSearchMcp -> backend.ragLayer.queryDomain.webSearchService
+  backend.processLayer.queryNodes.nodeRrf -> backend.ragLayer.queryDomain.rrfService
+  backend.processLayer.queryNodes.nodeRerank -> backend.ragLayer.queryDomain.rerankService
+  backend.processLayer.queryNodes.nodePermFilter -> backend.infraLayer.security.permEngine '★四维判定 has_access（默认拒绝）'
+  backend.processLayer.queryNodes.nodePermFilter -> backend.infraLayer.persistence.permissionRepository '★按 knowledge_id 批量取权限规则'
+  backend.processLayer.queryNodes.nodePermFilter -> backend.infraLayer.persistence.knowledgeRepository '★台账 → knowledge_id 映射'
+  backend.processLayer.queryNodes.nodePermFilter -> backend.sharedLayer.pipelineEvents '★拦截事件上报（仅管理员可见完整清单）'
+  backend.processLayer.queryNodes.nodeAnswerOutput -> backend.ragLayer.queryDomain.answerService 'Prompt 组装 + 生成'
+  backend.processLayer.queryNodes.nodeAnswerOutput -> backend.ragLayer.queryDomain.citationUtils '引用与图片提取'
+  backend.processLayer.queryNodes.nodeSaveCache -> backend.ragLayer.queryDomain.cacheService '写回语义缓存'
+
+  // ── 沉淀与运营 ──────────────────────────────────────────────────────────
+  backend.ragLayer.sediment.miningService -> backend.infraLayer.persistence.qaLogRepository '近 N 天提问聚类'
+  backend.ragLayer.sediment.miningService -> backend.infraLayer.persistence.faqRepository '写候选 FAQ'
+  backend.ragLayer.sediment.miningService -> backend.infraLayer.persistence.gapRepository '未命中日志入缺口池'
+  backend.ragLayer.sediment.dashboardService -> backend.infraLayer.persistence.qaLogRepository 'PV/UV/Token/延时聚合'
+
+  // ── 基础设施 → 存储 ─────────────────────────────────────────────────────
+  backend.infraLayer.persistence -> mongo '全部集合'
+  backend.infraLayer.vectorstore -> milvus '集合管理 / CRUD / 检索'
+  backend.infraLayer.objectStorage -> minio '图片上传下载'
+  backend.sharedLayer.clients -> mongo 'mongo_auth/history/qa_cache 客户端'
+  backend.sharedLayer.clients -> milvus
+  backend.sharedLayer.clients -> minio
+  backend.sharedLayer.clients -> redis '可选'
+
+  // ── 外部依赖 ────────────────────────────────────────────────────────────
+  backend.ragLayer.importDomain.pdfParseService -> mineru 'PDF → Markdown'
+  backend.ragLayer.importDomain.entryService -> backend.ragLayer.importDomain.textConvertService 'Word/TXT 分支（M4）'
+  backend.processLayer.importNodes.nodeMdImg -> llmProvider '视觉模型描述图片'
+  backend.ragLayer.importDomain.embeddingService -> embeddingModel
+  backend.ragLayer.queryDomain.embeddingSearchService -> embeddingModel
+  backend.ragLayer.queryDomain.rerankService -> rerankerModel
+  backend.ragLayer.queryDomain.answerService -> llmProvider '流式生成'
+  backend.ragLayer.queryDomain.hydeSearchService -> llmProvider 'HyDE 假设文档'
+  backend.ragLayer.queryDomain.webSearchService -> webSearch '三路召回之一'
+}

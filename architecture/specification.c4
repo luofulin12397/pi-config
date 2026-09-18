@@ -1,0 +1,53 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// 元素类型与标签定义（specification）
+// 依据：ai_rag_knowbase-master/docs/architecture.md（模块清单/依赖表）、任务计划 M1-M4
+// 约定：metadata.path 存仓库内相对路径（供 MCP query-by-metadata 检索）；
+//       link 指向真实源码文件（图里可点击跳转）
+// ─────────────────────────────────────────────────────────────────────────────
+specification {
+  element actor {
+    style {
+      shape person
+    }
+  }
+  element frontend {
+    style {
+      shape browser
+    }
+  }
+  // 服务/子系统（进程或容器级）
+  element service
+  // 代码模块（目录或文件级）,对应 app/ 下的真实模块
+  element module
+  // 本地加载的 AI 模型（BGE-M3 / Reranker）
+  element aiengine {
+    style {
+      color amber
+    }
+  }
+  element storage {
+    style {
+      shape storage
+    }
+  }
+  element external {
+    style {
+      color muted
+    }
+  }
+
+  // ── 部署节点类型（deployment 块使用）──
+  deploymentNode host
+  deploymentNode container
+  deploymentNode appProcess
+
+  // ── 里程碑标签（对应 task_plan.md 的 M1-M4）──
+  tag M1
+  tag M2
+  tag M3
+  tag M4
+  // ── 变更性质标签（对应 findings.md 差距对照：复用/新增/改造）──
+  tag reuse
+  tag added
+  tag refactor
+}

@@ -1,0 +1,12 @@
+// 视图：部署拓扑
+// 注意：LikeC4 1.59.3 不支持 `**` 递归通配，部署视图需逐层展开（element.* 形式）
+views {
+  deployment view deploymentView {
+    title '部署视图（云服务器）'
+    description 'Docker Compose 只跑 4 个数据服务；两个 FastAPI 进程与静态资源在宿主机（uv run）'
+    include cloudServer
+    include cloudServer.*
+    include cloudServer.composeStack.*
+    include cloudServer.hostRuntime.*
+  }
+}

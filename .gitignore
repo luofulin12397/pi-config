@@ -3,6 +3,7 @@ ai_rag_knowbase-master/
 
 # 通用
 node_modules/
+dist/
 __pycache__/
 *.log
 .DS_Store

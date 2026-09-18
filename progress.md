@@ -162,3 +162,15 @@
 - 三连修：①诊断脚本块缺 `</script>` 闭合 → 每次页面加载 SyntaxError（红条常驻根因）②「组织与系统配置」入口仍为 disabled 占位 ③saveCandidate 回调 this 未绑定
 - 冒烟结果：登录/知识中心(11行)/沉淀(4tab)/看板(6KPI)/组织(表格)全部渲染，页面 JS 错误 0
 - 说明：用户看到的红条 = ①的错误（功能不受影响），现已根治
+
+### 会话 5：LikeC4 架构即代码落地（`architecture/`）
+- 建立 LikeC4 工作区（likec4 1.59.3 + npm scripts：dev/build/build:single/export:png/format/mcp），VS Code 扩展与 MCP 双通道可查
+- 模型从「服务级 24 元素」细化到「代码模块级」：**108 元素 / 75 关系 / 21 视图**
+  - A 后端模块级：按 `app/` 真实目录树建模（api 入口 5 / process 编排 21（含 19 个 LangGraph 节点）/ rag 业务 28 / infra 15 / shared 7）
+  - B 节点级：导入图 7 节点、问答图 **12 节点**（多出 M1 新增的 `node_perm_filter`，此前图上没有）
+  - C 开发导航：每元素带 `metadata.path`（仓库相对路径）+ `link` 源码链接 + 里程碑标签（M1-M4 / reuse / added / refactor）
+  - D 部署视图：compose 只跑 4 个数据服务，两个 FastAPI 进程为宿主机 uv 进程（此前架构未体现）
+- 核实修正的依赖事实：`node_perm_filter` 直连 `perm_engine.has_access` + `permission_repository` + `knowledge_repository`（不经 `access_control_service`，后者是遗留壳）；审计落库在 `query_server.py`
+- 验证：`likec4 format` 0 错误；21 个视图经 headless Chromium 逐个渲染 0 报错；单文件 HTML 4.1MB（file:// 下 3 视图实测通过）
+- 语法坑（已写进 .c4 注释）：1.59.3 **不支持 `**` / `_` 通配**（skill 文档是 main 分支新语法），里程碑视图用显式 FQN 清单、部署视图用 `element.*` 逐层展开；部署节点属性须写在 `instanceOf` 之前
+- 遗留：里程碑视图为显式清单，新增带标签元素后需同步补录
